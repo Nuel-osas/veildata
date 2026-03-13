@@ -85,7 +85,7 @@ export default function MarketplaceGrid() {
         <div className="grid gap-8 border-t border-white/10 pb-10 pt-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <div>
             <div className="section-kicker">Marketplace</div>
-            <h2 className="mt-6 font-display text-[clamp(3.2rem,6vw,6.2rem)] uppercase leading-[0.88] tracking-[-0.06em]">
+            <h2 className="mt-6 font-display text-[clamp(3.2rem,6vw,6.2rem)] uppercase leading-[0.88] tracking-[-0.03em]">
               Buy the signal.
               <br />
               <span className="text-accent">Unlock the file later.</span>
@@ -132,7 +132,7 @@ export default function MarketplaceGrid() {
         ) : (
           <div className="border-t border-white/10 py-16">
             <div className="max-w-xl">
-              <p className="font-display text-[3rem] uppercase leading-[0.9] tracking-[-0.06em] text-accent">
+              <p className="font-display text-[3rem] uppercase leading-[0.9] tracking-[-0.03em] text-accent">
                 No listings yet.
               </p>
               <p className="mt-4 text-sm leading-relaxed text-text-secondary">

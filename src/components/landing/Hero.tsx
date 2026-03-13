@@ -129,7 +129,7 @@ export default function Hero() {
 
           <div className="space-y-2">
             <div className="overflow-hidden">
-              <h1 className="hero-row font-display text-[clamp(4.4rem,11vw,10rem)] uppercase leading-[0.86] tracking-[-0.06em]">
+              <h1 className="hero-row font-display text-[clamp(4.4rem,11vw,10rem)] uppercase leading-[0.86] tracking-[-0.03em]">
                 Sell data
               </h1>
             </div>
@@ -137,12 +137,12 @@ export default function Hero() {
               <div className="hero-row rounded-[1.4rem] bg-accent px-4 py-2 text-[0.68rem] font-mono uppercase tracking-[0.26em] text-black">
                 without leaks
               </div>
-              <h1 className="hero-row font-display text-[clamp(4.4rem,11vw,10rem)] uppercase leading-[0.86] tracking-[-0.06em]">
+              <h1 className="hero-row font-display text-[clamp(4.4rem,11vw,10rem)] uppercase leading-[0.86] tracking-[-0.03em]">
                 keep the file
               </h1>
             </div>
             <div className="overflow-hidden">
-              <h1 className="hero-row font-display text-[clamp(4.4rem,11vw,10rem)] uppercase leading-[0.86] tracking-[-0.06em] text-accent">
+              <h1 className="hero-row font-display text-[clamp(4.4rem,11vw,10rem)] uppercase leading-[0.86] tracking-[-0.03em] text-accent">
                 private
               </h1>
             </div>
@@ -201,7 +201,7 @@ export default function Hero() {
         <div className="relative z-10">
           <div className="hero-slab relative overflow-hidden rounded-[2.5rem] border border-white/8 bg-[#101010] p-6 md:p-8">
             <div className="soft-grid absolute inset-0 opacity-20" />
-            <div className="absolute right-4 top-2 font-display text-[6rem] uppercase leading-none tracking-[-0.08em] text-white/5 md:text-[8rem]">
+            <div className="absolute right-4 top-2 font-display text-[6rem] uppercase leading-none tracking-[-0.02em] text-white/5 md:text-[8rem]">
               veil
             </div>
 
@@ -216,7 +216,7 @@ export default function Hero() {
                   <p className="text-[0.68rem] font-mono uppercase tracking-[0.24em] text-accent">
                     Sample inventory
                   </p>
-                  <h2 className="mt-4 font-display text-[2.8rem] uppercase leading-[0.9] tracking-[-0.05em]">
+                  <h2 className="mt-4 font-display text-[2.8rem] uppercase leading-[0.9] tracking-[-0.03em]">
                     Urban mobility heatmaps
                   </h2>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-text-secondary">
@@ -243,11 +243,11 @@ export default function Hero() {
                       className="hero-micro rounded-[1.4rem] border border-white/8 bg-black/25 px-4 py-4"
                     >
                       <div className="flex items-start gap-4">
-                        <span className="font-display text-3xl leading-none tracking-[-0.06em] text-accent">
+                        <span className="font-display text-3xl leading-none tracking-[-0.03em] text-accent">
                           {row.label}
                         </span>
                         <div>
-                          <p className="font-display text-[1.35rem] uppercase leading-[0.92] tracking-[-0.04em]">
+                          <p className="font-display text-[1.35rem] uppercase leading-[0.92] tracking-[-0.02em]">
                             {row.title}
                           </p>
                           <p className="mt-2 text-sm leading-relaxed text-text-secondary">
@@ -270,7 +270,7 @@ export default function Hero() {
                     key={item.label}
                     className="hero-micro rounded-[1.2rem] border border-white/8 bg-white/3 px-4 py-4"
                   >
-                    <p className="font-display text-2xl uppercase leading-none tracking-[-0.04em] text-accent">
+                    <p className="font-display text-2xl uppercase leading-none tracking-[-0.02em] text-accent">
                       {item.value}
                     </p>
                     <p className="mt-2 text-[0.68rem] font-mono uppercase tracking-[0.18em] text-muted">

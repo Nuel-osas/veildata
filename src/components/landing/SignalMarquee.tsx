@@ -36,7 +36,7 @@ function Row({
         {repeated.map((item, index) => (
           <div
             key={`${item}-${index}`}
-            className="marquee-chip px-6 py-6 font-display text-[clamp(1.9rem,4.8vw,4.6rem)] uppercase leading-none tracking-[-0.04em]"
+            className="marquee-chip px-6 py-6 font-display text-[clamp(1.9rem,4.8vw,4.6rem)] uppercase leading-none tracking-[-0.02em]"
           >
             <span>{item}</span>
           </div>

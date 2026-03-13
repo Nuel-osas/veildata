@@ -49,7 +49,7 @@ export default function ListingCard({ listing }: { listing: ListingData }) {
               {listing.category}
             </span>
             <div className="text-right">
-              <p className="font-display text-[2rem] uppercase leading-none tracking-[-0.04em] text-accent">
+              <p className="font-display text-[2rem] uppercase leading-none tracking-[-0.02em] text-accent">
                 {listing.price}
               </p>
               <p className="text-[0.68rem] font-mono uppercase tracking-[0.18em] text-muted">
@@ -58,7 +58,7 @@ export default function ListingCard({ listing }: { listing: ListingData }) {
             </div>
           </div>
 
-          <h3 className="max-w-[12ch] font-display text-[2.2rem] uppercase leading-[0.9] tracking-[-0.05em] transition-colors duration-300 group-hover:text-accent">
+          <h3 className="max-w-[12ch] font-display text-[2.2rem] uppercase leading-[0.9] tracking-[-0.03em] transition-colors duration-300 group-hover:text-accent">
             {listing.title}
           </h3>
 

@@ -69,7 +69,7 @@ export default function HowItWorks() {
         <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
           <div className="flow-intro">
             <div className="section-kicker">The deal flow</div>
-            <h2 className="mt-6 font-display text-[clamp(3.4rem,7vw,7rem)] uppercase leading-[0.88] tracking-[-0.06em]">
+            <h2 className="mt-6 font-display text-[clamp(3.4rem,7vw,7rem)] uppercase leading-[0.88] tracking-[-0.03em]">
               Four moves.
               <br />
               <span className="text-accent">No leaks.</span>
@@ -88,11 +88,11 @@ export default function HowItWorks() {
                   key={step.num}
                   className="flow-row group grid gap-4 border-b border-white/10 py-6 md:grid-cols-[120px_1fr_60px] md:items-start"
                 >
-                  <div className="font-display text-[3rem] leading-none tracking-[-0.06em] text-accent">
+                  <div className="font-display text-[3rem] leading-none tracking-[-0.03em] text-accent">
                     {step.num}
                   </div>
                   <div>
-                    <h3 className="font-display text-[2rem] uppercase leading-[0.9] tracking-[-0.05em]">
+                    <h3 className="font-display text-[2rem] uppercase leading-[0.9] tracking-[-0.03em]">
                       {step.title}
                     </h3>
                     <p className="mt-3 max-w-2xl text-sm leading-relaxed text-text-secondary md:text-base">

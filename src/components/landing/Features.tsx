@@ -77,7 +77,7 @@ export default function Features() {
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
               <div className="section-kicker">Why it works</div>
-              <h2 className="mt-6 font-display text-[clamp(3.2rem,6vw,6.5rem)] uppercase leading-[0.88] tracking-[-0.06em]">
+              <h2 className="mt-6 font-display text-[clamp(3.2rem,6vw,6.5rem)] uppercase leading-[0.88] tracking-[-0.03em]">
                 Privacy with
                 <br />
                 <span className="text-accent">market structure</span>
@@ -105,13 +105,13 @@ export default function Features() {
                   <span className={`text-[0.68rem] font-mono uppercase tracking-[0.24em] ${card.tone === "accent" ? "text-black/60" : "text-muted"}`}>
                     {card.eyebrow}
                   </span>
-                  <span className={`font-display text-4xl leading-none tracking-[-0.06em] ${card.tone === "accent" ? "text-black/25" : "text-white/10"}`}>
+                  <span className={`font-display text-4xl leading-none tracking-[-0.03em] ${card.tone === "accent" ? "text-black/25" : "text-white/10"}`}>
                     0{index + 1}
                   </span>
                 </div>
 
                 <div>
-                  <h3 className={`max-w-[16ch] font-display text-[2.4rem] uppercase leading-[0.9] tracking-[-0.05em] md:text-[3rem] ${card.tone === "accent" ? "text-black" : "text-foreground"}`}>
+                  <h3 className={`max-w-[16ch] font-display text-[2.4rem] uppercase leading-[0.9] tracking-[-0.03em] md:text-[3rem] ${card.tone === "accent" ? "text-black" : "text-foreground"}`}>
                     {card.title}
                   </h3>
                   <p className={`mt-4 max-w-2xl text-sm leading-relaxed md:text-base ${card.tone === "accent" ? "text-black/75" : "text-text-secondary"}`}>
