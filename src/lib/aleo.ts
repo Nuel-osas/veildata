@@ -1,6 +1,6 @@
 /**
  * Aleo contract interaction helpers.
- * Builds TransactionOptions for the veildatamarketv7.aleo program,
+ * Builds TransactionOptions for the veildatamarketv8.aleo program,
  * compatible with the Provable Shield wallet adapter.
  */
 
@@ -8,7 +8,7 @@ import { TransactionOptions } from "@provablehq/aleo-types";
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv8.aleo";
 const FEE = 500_000; // 0.5 ALEO in microcredits
-// Program address for veildatamarketv7.aleo (escrow destination)
+// Program address for veildatamarketv8.aleo
 const PROGRAM_ADDRESS = "aleo17kc2tkll7plruvg4kvd9p93udknx977dldrw7me02znh5naf0u8sf5zd88";
 // Pool address (receives platform listing fees)
 const POOL_ADDRESS = "aleo12m9nrm9fqvvfj6sm7mqw5quwklqldfedu8kv43rnp33v09aqlvgq5hck26";
@@ -103,74 +103,6 @@ export function buildPurchaseTx(
       (params.amount * USDCX_DECIMALS).toString() + "u128",
       params.blobHash,
     ],
-    fee: FEE,
-    privateFee: false,
-  };
-}
-
-/**
- * Build a deliver transaction (seller sends decryption key to buyer).
- * The SellerNote record is auto-resolved by the wallet.
- */
-export function buildDeliverTx(
-  params: {
-    blobId1: string;
-    blobId2: string;
-    decryptionKey1: string;
-    decryptionKey2: string;
-  }
-): TransactionOptions {
-  return {
-    program: PROGRAM_ID,
-    function: "deliver",
-    inputs: [
-      params.blobId1,
-      params.blobId2,
-      params.decryptionKey1,
-      params.decryptionKey2,
-    ],
-    fee: FEE,
-    privateFee: false,
-  };
-}
-
-/**
- * Build a confirm_receipt transaction (buyer releases USDCx to seller).
- * The BuyerEscrow record is auto-resolved by the wallet.
- */
-export function buildConfirmReceiptTx(): TransactionOptions {
-  return {
-    program: PROGRAM_ID,
-    function: "confirm_receipt",
-    inputs: [],
-    fee: FEE,
-    privateFee: false,
-  };
-}
-
-/**
- * Build a dispute transaction.
- * The BuyerEscrow record is auto-resolved by the wallet.
- */
-export function buildDisputeTx(): TransactionOptions {
-  return {
-    program: PROGRAM_ID,
-    function: "dispute",
-    inputs: [],
-    fee: FEE,
-    privateFee: false,
-  };
-}
-
-/**
- * Build a claim_timeout_refund transaction (buyer reclaims after deadline).
- * The BuyerEscrow record is auto-resolved by the wallet.
- */
-export function buildClaimTimeoutRefundTx(): TransactionOptions {
-  return {
-    program: PROGRAM_ID,
-    function: "claim_timeout_refund",
-    inputs: [],
     fee: FEE,
     privateFee: false,
   };

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   });
 
   // Strip encryption key values but include a boolean flag
-  const publicListings = listings.map(({ encryptionKey, ...rest }) => ({
+  const publicListings = listings.map(({ encryptionKey, ...rest }: { encryptionKey: string | null; [key: string]: unknown }) => ({
     ...rest,
     hasEncryptionKey: !!encryptionKey,
   }));

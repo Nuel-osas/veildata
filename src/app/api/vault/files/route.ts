@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   });
 
   // Convert BigInt to Number for JSON serialization
-  const serialized = files.map((f) => ({
+  const serialized = files.map((f: typeof files[number]) => ({
     ...f,
     fileSize: Number(f.fileSize),
   }));
