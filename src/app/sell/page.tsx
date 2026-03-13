@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -35,7 +35,6 @@ export default function SellPage() {
     description: "",
     category: "",
     price: "",
-    deposit: "",
     rowCount: "",
     schemaFields: "",
   });
@@ -46,6 +45,19 @@ export default function SellPage() {
   const [blobId, setBlobId] = useState("");
   const [txId, setTxId] = useState("");
   const [error, setError] = useState("");
+  const [hasPrivateAleo, setHasPrivateAleo] = useState<boolean | null>(null);
+
+  // Check if wallet has private ALEO records by attempting to detect via records API
+  // Since we can't directly query private records, we show a warning and let the user self-check
+  useEffect(() => {
+    if (!connected || !address) {
+      setHasPrivateAleo(null);
+      return;
+    }
+    // We can't check private records from the API, so default to showing the warning
+    // Users who already converted will know they have private ALEO
+    setHasPrivateAleo(null);
+  }, [connected, address]);
 
   useGSAP(
     () => {
@@ -85,17 +97,31 @@ export default function SellPage() {
       // Step 1: Encrypt the file client-side
       setUploadStatus("encrypting");
       setStatusMessage("Encrypting your data with AES-256-GCM...");
-      const encrypted = await encryptFile(file);
+      let encrypted;
+      try {
+        encrypted = await encryptFile(file);
+      } catch {
+        throw new Error("Encryption failed. Please try a different file.");
+      }
       const packedKey = packKey(encrypted.key, encrypted.iv);
       setEncryptionKey(packedKey);
 
       // Step 2: Upload encrypted blob to Walrus
       setUploadStatus("uploading");
       setStatusMessage("Uploading encrypted blob to Walrus decentralized storage...");
-      const walrusResult = await uploadToWalrus(
-        encrypted.encryptedBlob,
-        WALRUS_CREATOR_ADDRESS
-      );
+      let walrusResult;
+      try {
+        walrusResult = await uploadToWalrus(
+          encrypted.encryptedBlob,
+          WALRUS_CREATOR_ADDRESS
+        );
+      } catch (walrusErr) {
+        const msg = walrusErr instanceof Error ? walrusErr.message : "";
+        if (msg.includes("402") || msg.includes("insufficient")) {
+          throw new Error("Walrus upload failed: sponsor credits exhausted. Contact the team.");
+        }
+        throw new Error(`Walrus upload failed: ${msg || "Network error. Try again."}`);
+      }
       setBlobId(walrusResult.blobId);
 
       // Step 3: Sign the create_listing transaction with Shield Wallet
@@ -116,15 +142,31 @@ export default function SellPage() {
         price: parseInt(formData.price),
         metadataHash,
         encryptionKeyHash,
-        depositAmount: parseInt(formData.deposit),
         category: categoryField,
-        rowCount: parseInt(formData.rowCount),
-        schemaHash,
+        rowCount: formData.rowCount ? parseInt(formData.rowCount) : 0,
+        schemaHash: formData.schemaFields ? schemaHash : stringToField("none"),
       });
 
-      const result = await executeTransaction(tx);
+      console.log("=== CREATE LISTING TX ===");
+      console.log("Program:", tx.program);
+      console.log("Function:", tx.function);
+      console.log("Inputs:", tx.inputs);
+      console.log("Full TX:", JSON.stringify(tx, null, 2));
+
+      let result;
+      try {
+        result = await executeTransaction(tx);
+        console.log("Wallet response:", result);
+      } catch (txErr) {
+        const msg = txErr instanceof Error ? txErr.message : "";
+        console.error("Wallet error details:", txErr);
+        if (msg.includes("No response")) {
+          throw new Error("Shield Wallet returned \"No response\". Try:\n• Close and reopen Shield Wallet extension\n• Convert public ALEO to private on Dashboard if you haven't\n• Make sure you have at least 1.5 ALEO (1 platform fee + 0.5 network fee)");
+        }
+        throw new Error(`Wallet error: ${msg || "Transaction failed."}`);
+      }
       if (!result?.transactionId) {
-        throw new Error("Transaction was not confirmed by wallet");
+        throw new Error("Wallet did not return a transaction ID. Please try again.");
       }
       setTxId(result.transactionId);
 
@@ -138,8 +180,8 @@ export default function SellPage() {
         description: formData.description,
         category: formData.category,
         price: parseInt(formData.price),
-        rowCount: parseInt(formData.rowCount),
-        schemaFields: formData.schemaFields,
+        rowCount: formData.rowCount ? parseInt(formData.rowCount) : 0,
+        schemaFields: formData.schemaFields || "",
         seller: address,
         blobId: walrusResult.blobId,
         encryptionKey: packedKey,
@@ -281,14 +323,13 @@ export default function SellPage() {
                       type="number"
                       value={formData.rowCount}
                       onChange={handleChange}
-                      placeholder="e.g. 50000"
+                      placeholder="Optional"
                       className="w-full px-4 py-3 bg-card border border-border rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
-                      required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      Price (ALEO)
+                      Price (USDCx)
                     </label>
                     <input
                       name="price"
@@ -307,7 +348,7 @@ export default function SellPage() {
                   <label className="block text-sm font-medium mb-2">
                     Schema Fields{" "}
                     <span className="text-muted font-normal">
-                      (comma separated)
+                      (optional, comma separated)
                     </span>
                   </label>
                   <input
@@ -316,27 +357,14 @@ export default function SellPage() {
                     onChange={handleChange}
                     placeholder="e.g. pair, volume_24h, trade_count, avg_size"
                     className="w-full px-4 py-3 bg-card border border-border rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
-                    required
                   />
                 </div>
 
-                {/* Deposit */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Security Deposit (ALEO)
-                    <span className="text-muted font-normal ml-2">
-                      Refunded after successful sale
-                    </span>
-                  </label>
-                  <input
-                    name="deposit"
-                    type="number"
-                    value={formData.deposit}
-                    onChange={handleChange}
-                    placeholder="e.g. 5"
-                    className="w-full px-4 py-3 bg-card border border-border rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
-                    required
-                  />
+                {/* Platform fee notice */}
+                <div className="glass-card rounded-xl p-4 border-accent/20 bg-accent/5">
+                  <p className="text-sm text-text-secondary">
+                    <span className="text-accent font-semibold">1 ALEO</span> platform fee will be charged from your wallet to list this data.
+                  </p>
                 </div>
 
                 <motion.button
@@ -366,6 +394,21 @@ export default function SellPage() {
                   </div>
                 )}
 
+                {/* Private ALEO check */}
+                {connected && (
+                  <div className="glass-card rounded-xl p-5 border-accent/30 bg-accent/5">
+                    <p className="text-sm text-text-secondary">
+                      <span className="text-accent font-semibold">Requires private ALEO.</span>{" "}
+                      Listing costs 1 ALEO platform fee paid from a private credits record.
+                      If you only have public ALEO, go to your{" "}
+                      <Link href="/dashboard" className="text-accent underline hover:text-accent-dim">
+                        Dashboard
+                      </Link>{" "}
+                      and click &quot;Get 2 Private ALEO&quot; first.
+                    </p>
+                  </div>
+                )}
+
                 {/* File upload */}
                 <div
                   className={`border-2 border-dashed rounded-2xl p-12 text-center transition-colors cursor-pointer ${
@@ -381,7 +424,7 @@ export default function SellPage() {
                     id="file-input"
                     type="file"
                     className="hidden"
-                    accept=".csv,.json,.parquet,.xlsx"
+                    accept=".csv,.json"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
                   />
                   {file ? (
@@ -402,7 +445,7 @@ export default function SellPage() {
                         Drop your dataset here
                       </p>
                       <p className="text-sm text-muted mt-1">
-                        CSV, JSON, Parquet, or XLSX — up to 100MB
+                        CSV or JSON — up to 100MB
                       </p>
                       <p className="text-xs text-accent mt-3 font-mono">
                         Encrypted client-side before upload
@@ -437,7 +480,7 @@ export default function SellPage() {
                 {/* Error */}
                 {error && (
                   <div className="glass-card rounded-xl p-5 border-red-500/30 bg-red-500/5">
-                    <p className="text-sm text-red-400">{error}</p>
+                    <p className="text-sm text-red-400 whitespace-pre-line">{error}</p>
                   </div>
                 )}
 
@@ -450,8 +493,8 @@ export default function SellPage() {
                     <li>Your file is encrypted with AES-256-GCM in your browser</li>
                     <li>The encrypted blob is uploaded to Walrus (decentralized storage on Sui)</li>
                     <li>You sign a transaction in Shield Wallet to create the listing on Aleo</li>
-                    <li>Your deposit is moved to the program&apos;s escrow via credits.aleo</li>
-                    <li>Only you hold the decryption key — buyers pay before they get access</li>
+                    <li>1 ALEO platform fee is paid via credits.aleo</li>
+                    <li>Buyers pay in USDCx — only you hold the decryption key</li>
                   </ol>
                 </div>
 
@@ -506,12 +549,8 @@ export default function SellPage() {
                     <div className="flex justify-between">
                       <span className="text-muted">Price</span>
                       <span className="font-medium text-accent">
-                        {formData.price} ALEO
+                        {formData.price} USDCx
                       </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted">Deposit</span>
-                      <span className="font-medium">{formData.deposit} ALEO</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted">Blob ID</span>
@@ -561,7 +600,7 @@ export default function SellPage() {
                 )}
 
                 <Link
-                  href="/"
+                  href="/marketplace"
                   className="inline-block px-8 py-3 bg-accent text-black font-semibold rounded-full hover:bg-accent-dim transition-colors"
                 >
                   View Marketplace

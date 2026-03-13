@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import Footer from "@/components/shared/Footer";
 import { buildPurchaseTx, stringToField } from "@/lib/aleo";
-import { fetchListing, createPurchase, ListingRecord } from "@/lib/listings";
+import { fetchListing, createPurchase, fetchPurchases, ListingRecord } from "@/lib/listings";
 
 export default function ListingPage() {
   const { id } = useParams();
@@ -20,23 +20,42 @@ export default function ListingPage() {
   const [purchasing, setPurchasing] = useState(false);
   const [txResult, setTxResult] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [alreadyBought, setAlreadyBought] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     fetchListing(id as string).then((found) => {
+      if (cancelled) return;
       setListing(found);
       setLoading(false);
     });
+    return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    if (!address || !listing) return;
+    let cancelled = false;
+    fetchPurchases(address).then((purchases) => {
+      if (cancelled) return;
+      const bought = purchases.some((p) => p.listingId === listing.listingId);
+      setAlreadyBought(bought);
+    });
+    return () => { cancelled = true; };
+  }, [address, listing?.listingId]);
+
+  const [animationPlayed, setAnimationPlayed] = useState(false);
 
   useGSAP(
     () => {
-      if (!listing) return;
+      if (!listing || animationPlayed) return;
+      setAnimationPlayed(true);
       const tl = gsap.timeline({ delay: 0.2 });
       tl.from(".listing-header", { y: 30, opacity: 0, duration: 0.7, ease: "power3.out" })
         .from(".listing-body", { y: 40, opacity: 0, duration: 0.7, ease: "power3.out" }, "-=0.4")
         .from(".listing-sidebar", { y: 50, opacity: 0, duration: 0.7, ease: "power3.out" }, "-=0.4");
     },
-    { scope: pageRef, dependencies: [listing] }
+    { scope: pageRef, dependencies: [listing, animationPlayed] }
   );
 
   const handlePurchase = async () => {
@@ -45,26 +64,57 @@ export default function ListingPage() {
     setError("");
 
     try {
-      const tx = buildPurchaseTx({
+      // Call veildatamarketv3.aleo/purchase — handles USDCx escrow on-chain
+      const blobHash = stringToField(listing.blobId);
+      const purchaseTx = buildPurchaseTx({
         listingId: listing.listingId,
         seller: listing.seller,
         amount: listing.price,
-        blobHash: stringToField(listing.blobId),
+        blobHash,
       });
 
-      const result = await executeTransaction(tx);
+      console.log("=== PURCHASE TX ===", JSON.stringify(purchaseTx, null, 2));
+
+      const result = await executeTransaction(purchaseTx);
       if (!result?.transactionId) {
-        throw new Error("Transaction was rejected or not confirmed");
+        throw new Error("Transaction was rejected by wallet");
       }
+      console.log("Purchase wallet response:", result);
+
+      // Poll for on-chain confirmation via listing_status mapping
+      const apiBase = process.env.NEXT_PUBLIC_ALEO_API || "https://api.explorer.provable.com/v1";
+      const network = process.env.NEXT_PUBLIC_ALEO_NETWORK || "testnet";
+      const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv3.aleo";
+
+      let confirmed = false;
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        try {
+          const res = await fetch(`${apiBase}/${network}/program/${programId}/mapping/listing_status/${listing.listingId}`);
+          const raw = await res.text();
+          // Status 2u8 means purchased
+          if (raw && raw.includes("2")) {
+            confirmed = true;
+            break;
+          }
+        } catch {
+          // keep polling
+        }
+      }
+
+      if (!confirmed) {
+        throw new Error("Purchase not confirmed on-chain yet. It may still be processing — check your dashboard in a few minutes.");
+      }
+
       setTxResult(result.transactionId);
 
-      // Store the purchase in database
+      // Record the purchase in database
       await createPurchase({
         listingId: listing.listingId,
         buyer: address,
         seller: listing.seller,
         amount: listing.price,
-        blobHash: stringToField(listing.blobId),
+        blobHash,
         txId: result.transactionId,
       });
     } catch (err: unknown) {
@@ -93,7 +143,7 @@ export default function ListingPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-2">Listing not found</h1>
           <p className="text-muted mb-4">This listing doesn&apos;t exist or hasn&apos;t been indexed yet.</p>
-          <Link href="/" className="text-accent hover:underline">
+          <Link href="/marketplace" className="text-accent hover:underline">
             Back to marketplace
           </Link>
         </div>
@@ -109,7 +159,7 @@ export default function ListingPage() {
         <div className="max-w-6xl mx-auto">
           {/* Breadcrumb */}
           <div className="listing-header mb-8">
-            <Link href="/" className="text-sm text-muted hover:text-foreground transition-colors font-mono">
+            <Link href="/marketplace" className="text-sm text-muted hover:text-foreground transition-colors font-mono">
               &larr; Back to Marketplace
             </Link>
           </div>
@@ -176,7 +226,7 @@ export default function ListingPage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-text-secondary">Program</span>
-                    <span className="font-mono text-xs text-accent">veildatamarket.aleo</span>
+                    <span className="font-mono text-xs text-accent">veildatamarketv3.aleo</span>
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-text-secondary">Listing ID</span>
@@ -202,7 +252,7 @@ export default function ListingPage() {
                   {[
                     { label: "Data contents", status: "Encrypted (AES-256-GCM)", private: true },
                     { label: "Buyer identity", status: "Hidden via ZK", private: true },
-                    { label: "Payment amount", status: "Private escrow (credits.aleo)", private: true },
+                    { label: "Payment amount", status: "USDCx escrow (on-chain)", private: true },
                     { label: "Row count", status: "Public (on-chain)", private: false },
                     { label: "Schema structure", status: "Public", private: false },
                     { label: "Storage", status: "Walrus (decentralized)", private: false },
@@ -224,7 +274,7 @@ export default function ListingPage() {
                 {/* Price */}
                 <div className="text-center mb-6">
                   <span className="text-4xl font-bold text-accent">{listing.price}</span>
-                  <span className="text-lg text-muted ml-2">ALEO</span>
+                  <span className="text-lg text-muted ml-2">USDCx</span>
                 </div>
 
                 {/* Transaction result */}
@@ -243,14 +293,22 @@ export default function ListingPage() {
                 )}
 
                 {/* Buy button */}
-                {!connected ? (
+                {alreadyBought || txResult ? (
+                  <div className="w-full py-4 text-center text-sm text-accent border border-accent/30 bg-accent/5 rounded-full mb-4">
+                    Purchased
+                  </div>
+                ) : !connected ? (
                   <div className="w-full py-4 text-center text-sm text-muted border border-border rounded-full mb-4">
                     Connect Shield Wallet to purchase
+                  </div>
+                ) : address === listing.seller ? (
+                  <div className="w-full py-4 text-center text-sm text-muted border border-border rounded-full mb-4">
+                    This is your listing
                   </div>
                 ) : (
                   <motion.button
                     onClick={handlePurchase}
-                    disabled={purchasing || !!txResult}
+                    disabled={purchasing || !!txResult || alreadyBought}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="w-full py-4 bg-accent text-black font-semibold rounded-full text-lg hover:bg-accent-dim transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -269,7 +327,7 @@ export default function ListingPage() {
                 )}
 
                 <p className="text-xs text-muted text-center mb-6">
-                  {listing.price} ALEO moves to private escrow via credits.aleo.
+                  {listing.price} USDCx moves to escrow via test_usdcx_stablecoin.aleo.
                   Released to seller after you confirm delivery.
                 </p>
 
@@ -283,7 +341,7 @@ export default function ListingPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">Escrow</span>
-                    <span className="text-accent font-mono text-xs">credits.aleo</span>
+                    <span className="text-accent font-mono text-xs">USDCx escrow</span>
                   </div>
                 </div>
 
@@ -293,7 +351,7 @@ export default function ListingPage() {
                   <div className="space-y-2 text-xs text-text-secondary">
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">1.</span>
-                      <span>Sign transaction — credits go to private escrow</span>
+                      <span>Sign transaction — USDCx goes to on-chain escrow</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">2.</span>

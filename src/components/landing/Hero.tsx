@@ -162,7 +162,7 @@ export default function Hero() {
               Start a listing
             </Link>
             <Link
-              href="/#marketplace"
+              href="/marketplace"
               className="inline-flex items-center justify-center rounded-full border border-white/10 px-7 py-3.5 text-sm uppercase tracking-[0.18em] text-foreground transition-all duration-300 hover:-translate-y-1 hover:border-accent/35"
             >
               Browse the market

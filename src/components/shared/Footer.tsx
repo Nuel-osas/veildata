@@ -29,7 +29,7 @@ export default function Footer() {
             <div>
               <h4 className="text-sm font-semibold mb-4">Product</h4>
               <div className="flex flex-col gap-2">
-                <Link href="/" className="text-sm text-muted hover:text-foreground transition-colors">Marketplace</Link>
+                <Link href="/marketplace" className="text-sm text-muted hover:text-foreground transition-colors">Marketplace</Link>
                 <Link href="/sell" className="text-sm text-muted hover:text-foreground transition-colors">Sell Data</Link>
                 <Link href="/dashboard" className="text-sm text-muted hover:text-foreground transition-colors">Dashboard</Link>
               </div>

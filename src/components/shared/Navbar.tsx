@@ -9,7 +9,7 @@ import { Network } from "@provablehq/aleo-types";
 import VeilMark from "./VeilMark";
 
 const navLinks = [
-  { href: "/", label: "Marketplace" },
+  { href: "/marketplace", label: "Marketplace" },
   { href: "/sell", label: "Sell Data" },
   { href: "/dashboard", label: "Dashboard" },
 ];
