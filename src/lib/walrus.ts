@@ -93,9 +93,10 @@ export async function getBlob(blobId: string) {
 /**
  * Get public aggregator URL for a blob (for reading/downloading).
  */
+const WALRUS_AGGREGATOR = "https://aggregator.walrus-mainnet.walrus.space";
+
 export function getBlobUrl(blobId: string): string {
-  const client = getClient();
-  return client.getBlobUrl(blobId);
+  return `${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`;
 }
 
 /**

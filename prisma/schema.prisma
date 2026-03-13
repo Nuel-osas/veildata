@@ -38,3 +38,25 @@ model Purchase {
 
   @@map("purchases")
 }
+
+model VaultStorage {
+  id         Int      @id @default(autoincrement())
+  owner      String
+  totalBytes BigInt   @map("total_bytes")
+  txId       String   @map("tx_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("vault_storage")
+}
+
+model VaultFile {
+  id            Int      @id @default(autoincrement())
+  owner         String
+  fileName      String   @map("file_name")
+  fileSize      BigInt   @map("file_size")
+  blobId        String   @map("blob_id")
+  encryptionKey String   @map("encryption_key")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("vault_files")
+}

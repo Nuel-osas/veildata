@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import VeilMark from "./VeilMark";
 
 export default function Footer() {
   return (
@@ -10,10 +11,10 @@ export default function Footer() {
           {/* Brand */}
           <div className="max-w-sm">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-                <span className="text-black font-bold text-sm">V</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-accent/20 bg-accent/10 text-accent">
+                <VeilMark className="h-5 w-5" />
               </div>
-              <span className="text-xl font-semibold">
+              <span className="font-display text-xl uppercase tracking-[-0.04em]">
                 Veil<span className="text-accent">Data</span>
               </span>
             </div>

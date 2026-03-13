@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import { WalletMultiButton } from "@provablehq/aleo-wallet-adaptor-react-ui";
 import { Network } from "@provablehq/aleo-types";
+import VeilMark from "./VeilMark";
 
 const navLinks = [
   { href: "/", label: "Marketplace" },
@@ -21,8 +22,8 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 z-50 w-full px-4 pt-4 md:px-6">
       <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/8 bg-black/50 px-5 py-3 backdrop-blur-xl">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent">
-            <span className="text-sm font-bold text-black">V</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-accent/20 bg-accent/10 text-accent">
+            <VeilMark className="h-5 w-5" />
           </div>
           <div>
             <span className="font-display text-xl uppercase tracking-[-0.04em]">

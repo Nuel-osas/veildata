@@ -3,30 +3,44 @@ import { getPrisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/listings/[id]/key?seller=aleo1... — fetch encryption key for a listing (seller only)
+// GET /api/listings/[id]/key?address=aleo1...
+// Seller can always access. Buyer can access after delivery.
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const seller = req.nextUrl.searchParams.get("seller");
+  const address = req.nextUrl.searchParams.get("address") || req.nextUrl.searchParams.get("seller");
 
-  if (!seller) {
-    return NextResponse.json({ error: "Missing seller address" }, { status: 400 });
+  if (!address) {
+    return NextResponse.json({ error: "Missing address" }, { status: 400 });
   }
 
-  const listing = await getPrisma().listing.findUnique({
+  const prisma = getPrisma();
+
+  const listing = await prisma.listing.findUnique({
     where: { listingId: id },
-    select: { seller: true, encryptionKey: true },
+    select: { seller: true, encryptionKey: true, status: true },
   });
 
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  if (listing.seller !== seller) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  // Seller can always access their own key
+  if (listing.seller === address) {
+    return NextResponse.json({ encryptionKey: listing.encryptionKey });
   }
 
-  return NextResponse.json({ encryptionKey: listing.encryptionKey });
+  // Buyer can access only after delivery
+  if (listing.status === "delivered") {
+    const purchase = await prisma.purchase.findFirst({
+      where: { listingId: id, buyer: address },
+    });
+    if (purchase) {
+      return NextResponse.json({ encryptionKey: listing.encryptionKey });
+    }
+  }
+
+  return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 }

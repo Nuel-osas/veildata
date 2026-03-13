@@ -8,7 +8,10 @@ export async function GET(req: NextRequest) {
   const buyer = req.nextUrl.searchParams.get("buyer");
 
   const purchases = await getPrisma().purchase.findMany({
-    where: buyer ? { buyer } : {},
+    where: {
+      ...(buyer ? { buyer } : {}),
+      listingId: { not: "faucet_claim" },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -25,7 +28,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const purchase = await getPrisma().purchase.create({
+  const prisma = getPrisma();
+
+  // Prevent same buyer from purchasing the same listing twice
+  const existing = await prisma.purchase.findFirst({
+    where: { listingId, buyer },
+  });
+  if (existing) {
+    return NextResponse.json({ error: "You already purchased this listing" }, { status: 409 });
+  }
+
+  const purchase = await prisma.purchase.create({
     data: {
       listingId,
       buyer,
