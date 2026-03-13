@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import ListingCard, { ListingData } from "./ListingCard";
+import { fetchListings } from "@/lib/listings";
+import Link from "next/link";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -18,111 +20,34 @@ const categories = [
   "Geospatial",
 ];
 
-// Mock data for demo
-const mockListings: ListingData[] = [
-  {
-    id: "1",
-    title: "DeFi Trading Patterns Q1 2026",
-    description:
-      "Aggregated trading patterns across major DEXs. Includes volume, frequency, and pair analysis. No wallet addresses exposed.",
-    category: "Finance",
-    rowCount: 50000,
-    price: 25,
-    seller: "aleo1qr2h4s8xgn7k3m9p0v5w8y1z6a4b7c0d3e6f9",
-    schemaPreview: ["pair", "volume_24h", "trade_count", "avg_size", "spread"],
-    salesCount: 12,
-  },
-  {
-    id: "2",
-    title: "Anonymous Health Survey — Sleep Patterns",
-    description:
-      "10K participant sleep study data. Fully anonymized. Verified by ZK proof of institutional origin.",
-    category: "Healthcare",
-    rowCount: 10000,
-    price: 40,
-    seller: "aleo1m5n8k2j4h6g9f1d3s7a0p2o5i8u1y4t7r0e3w",
-    schemaPreview: [
-      "age_range",
-      "sleep_hours",
-      "quality_score",
-      "rem_pct",
-      "device_type",
-    ],
-    salesCount: 8,
-  },
-  {
-    id: "3",
-    title: "Social Engagement Metrics — Creator Economy",
-    description:
-      "Engagement rates, growth trends, and content performance metrics from 5K+ verified creators.",
-    category: "Social",
-    rowCount: 25000,
-    price: 15,
-    seller: "aleo1x9c2v4b6n8m0k3j5h7g1f4d6s8a0p2o5i9u3y",
-    schemaPreview: [
-      "platform",
-      "followers",
-      "engagement_rate",
-      "content_type",
-      "growth_30d",
-    ],
-    salesCount: 23,
-  },
-  {
-    id: "4",
-    title: "ML Training Set — Sentiment Analysis",
-    description:
-      "Labeled sentiment dataset for NLP model training. 100K+ entries with multi-language support.",
-    category: "AI",
-    rowCount: 100000,
-    price: 60,
-    seller: "aleo1w3e5r7t9y1u3i5o7p9a2s4d6f8g0h2j4k6l8z",
-    schemaPreview: [
-      "text_hash",
-      "sentiment",
-      "confidence",
-      "language",
-      "source_type",
-    ],
-    salesCount: 5,
-  },
-  {
-    id: "5",
-    title: "Urban Mobility Heatmaps — Q4 2025",
-    description:
-      "Aggregated movement patterns in 20 major cities. Privacy-preserving — no individual tracking.",
-    category: "Geospatial",
-    rowCount: 75000,
-    price: 35,
-    seller: "aleo1a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s",
-    schemaPreview: ["city", "zone", "hour", "density_score", "transport_mode"],
-    salesCount: 17,
-  },
-  {
-    id: "6",
-    title: "DeFi Yield History — Top 50 Protocols",
-    description:
-      "Historical APY/APR data across lending, staking, and LP positions. Daily granularity.",
-    category: "Finance",
-    rowCount: 30000,
-    price: 20,
-    seller: "aleo1z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h",
-    schemaPreview: ["protocol", "pool", "apy", "tvl", "date", "chain"],
-    salesCount: 31,
-  },
-];
-
 export default function MarketplaceGrid() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [listings, setListings] = useState<ListingData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredListings =
-    activeCategory === "All"
-      ? mockListings
-      : mockListings.filter((l) => l.category === activeCategory);
+  useEffect(() => {
+    setLoading(true);
+    fetchListings(activeCategory).then((data) => {
+      const mapped: ListingData[] = data.map((l) => ({
+        id: l.listingId,
+        title: l.title,
+        description: l.description,
+        category: l.category,
+        rowCount: l.rowCount,
+        price: l.price,
+        seller: l.seller,
+        schemaPreview: l.schemaFields.split(",").map((s) => s.trim()).filter(Boolean),
+        salesCount: 0,
+      }));
+      setListings(mapped);
+      setLoading(false);
+    });
+  }, [activeCategory]);
 
   useGSAP(
     () => {
+      if (listings.length === 0) return;
       gsap.from(".listing-card", {
         y: 40,
         opacity: 0,
@@ -136,7 +61,7 @@ export default function MarketplaceGrid() {
         },
       });
     },
-    { scope: sectionRef, dependencies: [activeCategory] }
+    { scope: sectionRef, dependencies: [listings] }
   );
 
   return (
@@ -152,7 +77,7 @@ export default function MarketplaceGrid() {
               Browse datasets
             </h2>
             <p className="text-text-secondary mt-2">
-              All transactions are private. Sellers verified by ZK proofs.
+              All transactions are private. Sellers verified on-chain.
             </p>
           </div>
 
@@ -175,18 +100,31 @@ export default function MarketplaceGrid() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredListings.map((listing) => (
-            <div key={listing.id} className="listing-card">
-              <ListingCard listing={listing} />
-            </div>
-          ))}
-        </div>
-
-        {filteredListings.length === 0 && (
-          <div className="text-center py-20 text-muted">
-            <p className="text-lg">No datasets in this category yet.</p>
-            <p className="text-sm mt-2">Be the first to list one.</p>
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : listings.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {listings.map((listing) => (
+              <div key={listing.id} className="listing-card">
+                <ListingCard listing={listing} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20">
+            <div className="text-5xl mb-4">🔒</div>
+            <p className="text-lg font-medium mb-2">No datasets listed yet</p>
+            <p className="text-sm text-muted mb-6">
+              Be the first to list your data on the confidential marketplace.
+            </p>
+            <Link
+              href="/sell"
+              className="inline-block px-8 py-3 bg-accent text-black font-semibold rounded-full hover:bg-accent-dim transition-colors"
+            >
+              List Your Data
+            </Link>
           </div>
         )}
       </div>

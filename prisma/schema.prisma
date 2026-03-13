@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Listing {
+  id              Int      @id @default(autoincrement())
+  listingId       String   @unique @map("listing_id")
+  title           String
+  description     String
+  category        String
+  price           Int
+  rowCount        Int      @map("row_count")
+  schemaFields    String   @map("schema_fields")
+  seller          String
+  blobId          String   @map("blob_id")
+  encryptionKey   String?  @map("encryption_key")
+  txId            String   @map("tx_id")
+  status          String   @default("active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("listings")
+}
+
+model Purchase {
+  id          Int      @id @default(autoincrement())
+  listingId   String   @map("listing_id")
+  buyer       String
+  seller      String
+  amount      Int
+  blobHash    String   @map("blob_hash")
+  txId        String   @map("tx_id")
+  status      String   @default("escrowed")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("purchases")
+}

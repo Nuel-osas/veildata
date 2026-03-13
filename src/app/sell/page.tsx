@@ -9,6 +9,7 @@ import Footer from "@/components/shared/Footer";
 import { encryptFile, keyToFields, packKey } from "@/lib/crypto";
 import { uploadToWalrus } from "@/lib/walrus";
 import { buildCreateListingTx, stringToField } from "@/lib/aleo";
+import { createListing } from "@/lib/listings";
 
 const categories = [
   "Finance",
@@ -22,7 +23,7 @@ const categories = [
 // Sui address for Walrus uploads — maps to the platform's Walrus workspace
 const WALRUS_CREATOR_ADDRESS = process.env.NEXT_PUBLIC_WALRUS_CREATOR_ADDRESS || "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-type UploadStatus = "idle" | "encrypting" | "uploading" | "creating_listing" | "done" | "error";
+type UploadStatus = "idle" | "encrypting" | "uploading" | "signing" | "confirming" | "done" | "error";
 
 export default function SellPage() {
   const pageRef = useRef<HTMLDivElement>(null);
@@ -42,6 +43,7 @@ export default function SellPage() {
   const [statusMessage, setStatusMessage] = useState("");
   const [encryptionKey, setEncryptionKey] = useState("");
   const [blobId, setBlobId] = useState("");
+  const [txId, setTxId] = useState("");
   const [error, setError] = useState("");
 
   useGSAP(
@@ -74,12 +76,12 @@ export default function SellPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !address) return;
+    if (!file || !address || !executeTransaction) return;
 
     setError("");
 
     try {
-      // Step 1: Encrypt the file
+      // Step 1: Encrypt the file client-side
       setUploadStatus("encrypting");
       setStatusMessage("Encrypting your data with AES-256-GCM...");
       const encrypted = await encryptFile(file);
@@ -88,25 +90,16 @@ export default function SellPage() {
 
       // Step 2: Upload encrypted blob to Walrus
       setUploadStatus("uploading");
-      setStatusMessage("Uploading encrypted blob to Walrus...");
+      setStatusMessage("Uploading encrypted blob to Walrus decentralized storage...");
+      const walrusResult = await uploadToWalrus(
+        encrypted.encryptedBlob,
+        WALRUS_CREATOR_ADDRESS
+      );
+      setBlobId(walrusResult.blobId);
 
-      let walrusResult;
-      try {
-        walrusResult = await uploadToWalrus(
-          encrypted.encryptedBlob,
-          WALRUS_CREATOR_ADDRESS
-        );
-        setBlobId(walrusResult.blobId);
-      } catch {
-        // Fallback to demo mode if no API key configured
-        const fakeBlobId = "demo_" + Date.now().toString(36);
-        walrusResult = { blobId: fakeBlobId };
-        setBlobId(fakeBlobId);
-      }
-
-      // Step 3: Create listing on Aleo
-      setUploadStatus("creating_listing");
-      setStatusMessage("Creating listing on Aleo...");
+      // Step 3: Sign the create_listing transaction with Shield Wallet
+      setUploadStatus("signing");
+      setStatusMessage("Approve the transaction in Shield Wallet to create your listing...");
 
       const listingId = stringToField(formData.title + Date.now());
       const blobHash = stringToField(walrusResult.blobId);
@@ -116,29 +109,44 @@ export default function SellPage() {
       const categoryField = stringToField(formData.category);
       const schemaHash = stringToField(formData.schemaFields);
 
-      if (executeTransaction) {
-        const tx = buildCreateListingTx({
-          listingId,
-          blobHash,
-          price: parseInt(formData.price),
-          metadataHash,
-          encryptionKeyHash,
-          depositAmount: parseInt(formData.deposit),
-          category: categoryField,
-          rowCount: parseInt(formData.rowCount),
-          schemaHash,
-        });
+      const tx = buildCreateListingTx({
+        listingId,
+        blobHash,
+        price: parseInt(formData.price),
+        metadataHash,
+        encryptionKeyHash,
+        depositAmount: parseInt(formData.deposit),
+        category: categoryField,
+        rowCount: parseInt(formData.rowCount),
+        schemaHash,
+      });
 
-        try {
-          const result = await executeTransaction(tx);
-          console.log("Listing transaction:", result?.transactionId);
-        } catch (txError) {
-          console.log("Transaction skipped (demo mode):", txError);
-        }
+      const result = await executeTransaction(tx);
+      if (!result?.transactionId) {
+        throw new Error("Transaction was not confirmed by wallet");
       }
+      setTxId(result.transactionId);
+
+      // Step 4: Store listing locally and confirm
+      setUploadStatus("confirming");
+      setStatusMessage("Transaction submitted! Indexing listing...");
+
+      await createListing({
+        listingId,
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        price: parseInt(formData.price),
+        rowCount: parseInt(formData.rowCount),
+        schemaFields: formData.schemaFields,
+        seller: address,
+        blobId: walrusResult.blobId,
+        encryptionKey: packedKey,
+        txId: result.transactionId,
+      });
 
       setUploadStatus("done");
-      setStatusMessage("Listing created successfully!");
+      setStatusMessage("Listing created on Aleo and data stored on Walrus!");
       setStep(3);
     } catch (err: any) {
       setUploadStatus("error");
@@ -413,7 +421,8 @@ export default function SellPage() {
                         <p className="text-sm font-medium">
                           {uploadStatus === "encrypting" && "Encrypting..."}
                           {uploadStatus === "uploading" && "Uploading to Walrus..."}
-                          {uploadStatus === "creating_listing" && "Creating Aleo listing..."}
+                          {uploadStatus === "signing" && "Waiting for wallet approval..."}
+                          {uploadStatus === "confirming" && "Confirming on-chain..."}
                           {uploadStatus === "error" && "Error"}
                         </p>
                         <p className="text-xs text-muted mt-0.5">{statusMessage}</p>
@@ -436,10 +445,10 @@ export default function SellPage() {
                   </h4>
                   <ol className="text-sm text-text-secondary space-y-1.5 list-decimal list-inside">
                     <li>Your file is encrypted with AES-256-GCM in your browser</li>
-                    <li>The encrypted blob is uploaded to Walrus (decentralized storage)</li>
-                    <li>A listing is created on Aleo with ZK proofs of your data properties</li>
-                    <li>You stake your deposit as collateral</li>
-                    <li>Only you hold the decryption key until a buyer pays</li>
+                    <li>The encrypted blob is uploaded to Walrus (decentralized storage on Sui)</li>
+                    <li>You sign a transaction in Shield Wallet to create the listing on Aleo</li>
+                    <li>Your deposit is moved to the program&apos;s escrow via credits.aleo</li>
+                    <li>Only you hold the decryption key — buyers pay before they get access</li>
                   </ol>
                 </div>
 
@@ -459,8 +468,12 @@ export default function SellPage() {
                     disabled={!file || !connected || (uploadStatus !== "idle" && uploadStatus !== "error")}
                     className="flex-1 py-4 bg-accent text-black font-semibold rounded-full text-lg hover:bg-accent-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    {uploadStatus === "idle" || uploadStatus === "error"
-                      ? "Encrypt & List"
+                    {!connected
+                      ? "Connect Wallet First"
+                      : !file
+                      ? "Select a File"
+                      : uploadStatus === "idle" || uploadStatus === "error"
+                      ? "Encrypt, Upload & Sign"
                       : "Processing..."}
                   </motion.button>
                 </div>
@@ -503,21 +516,31 @@ export default function SellPage() {
                         {blobId ? `${blobId.slice(0, 12)}...` : "—"}
                       </span>
                     </div>
+                    {txId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted">Tx ID</span>
+                        <span className="font-mono text-xs text-muted">
+                          {txId.slice(0, 12)}...
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted">Status</span>
-                      <span className="text-accent font-mono text-xs">Active</span>
+                      <span className="text-accent font-mono text-xs">On-chain</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Encryption key warning */}
+                {/* Encryption key stored */}
                 {encryptionKey && (
-                  <div className="glass-card rounded-xl p-5 text-left max-w-sm mx-auto mb-8 border-yellow-500/30 bg-yellow-500/5">
-                    <h4 className="text-sm font-semibold text-yellow-400 mb-2">
-                      Save Your Encryption Key
+                  <div className="glass-card rounded-xl p-5 text-left max-w-sm mx-auto mb-8 border-green-500/30 bg-green-500/5">
+                    <h4 className="text-sm font-semibold text-green-400 mb-2">
+                      Encryption Key Stored
                     </h4>
                     <p className="text-xs text-text-secondary mb-3">
-                      You&apos;ll need this to deliver data to buyers. Store it securely.
+                      Your decryption key is securely stored. When a buyer purchases your data,
+                      you can deliver it from your dashboard — the key will be sent on-chain
+                      via an AccessGrant record.
                     </p>
                     <div className="bg-black/30 rounded-lg p-3 break-all">
                       <code className="text-xs text-accent font-mono">

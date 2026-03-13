@@ -1,88 +1,41 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRef, useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion } from "framer-motion";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import Footer from "@/components/shared/Footer";
 import { buildPurchaseTx, stringToField } from "@/lib/aleo";
-
-// Mock data — same as marketplace
-const mockListings: Record<string, {
-  id: string; title: string; description: string; category: string;
-  rowCount: number; price: number; seller: string; schemaPreview: string[];
-  salesCount: number; deposit: number; blobHash: string;
-}> = {
-  "1": {
-    id: "1", title: "DeFi Trading Patterns Q1 2026",
-    description: "Aggregated trading patterns across major DEXs. Includes volume, frequency, and pair analysis. No wallet addresses exposed. Data covers 15 chains and 200+ trading pairs with hourly granularity.",
-    category: "Finance", rowCount: 50000, price: 25, deposit: 5,
-    seller: "aleo1qr2h4s8xgn7k3m9p0v5w8y1z6a4b7c0d3e6f9",
-    schemaPreview: ["pair", "volume_24h", "trade_count", "avg_size", "spread", "chain", "timestamp"],
-    salesCount: 12, blobHash: stringToField("demo_blob_1"),
-  },
-  "2": {
-    id: "2", title: "Anonymous Health Survey — Sleep Patterns",
-    description: "10K participant sleep study data. Fully anonymized. Verified by ZK proof of institutional origin. Includes sleep duration, quality metrics, REM analysis, and device correlation data.",
-    category: "Healthcare", rowCount: 10000, price: 40, deposit: 10,
-    seller: "aleo1m5n8k2j4h6g9f1d3s7a0p2o5i8u1y4t7r0e3w",
-    schemaPreview: ["age_range", "sleep_hours", "quality_score", "rem_pct", "device_type", "region"],
-    salesCount: 8, blobHash: stringToField("demo_blob_2"),
-  },
-  "3": {
-    id: "3", title: "Social Engagement Metrics — Creator Economy",
-    description: "Engagement rates, growth trends, and content performance metrics from 5K+ verified creators across platforms.",
-    category: "Social", rowCount: 25000, price: 15, deposit: 5,
-    seller: "aleo1x9c2v4b6n8m0k3j5h7g1f4d6s8a0p2o5i9u3y",
-    schemaPreview: ["platform", "followers", "engagement_rate", "content_type", "growth_30d"],
-    salesCount: 23, blobHash: stringToField("demo_blob_3"),
-  },
-  "4": {
-    id: "4", title: "ML Training Set — Sentiment Analysis",
-    description: "Labeled sentiment dataset for NLP model training. 100K+ entries with multi-language support.",
-    category: "AI", rowCount: 100000, price: 60, deposit: 15,
-    seller: "aleo1w3e5r7t9y1u3i5o7p9a2s4d6f8g0h2j4k6l8z",
-    schemaPreview: ["text_hash", "sentiment", "confidence", "language", "source_type"],
-    salesCount: 5, blobHash: stringToField("demo_blob_4"),
-  },
-  "5": {
-    id: "5", title: "Urban Mobility Heatmaps — Q4 2025",
-    description: "Aggregated movement patterns in 20 major cities. Privacy-preserving — no individual tracking.",
-    category: "Geospatial", rowCount: 75000, price: 35, deposit: 8,
-    seller: "aleo1a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s",
-    schemaPreview: ["city", "zone", "hour", "density_score", "transport_mode"],
-    salesCount: 17, blobHash: stringToField("demo_blob_5"),
-  },
-  "6": {
-    id: "6", title: "DeFi Yield History — Top 50 Protocols",
-    description: "Historical APY/APR data across lending, staking, and LP positions. Daily granularity.",
-    category: "Finance", rowCount: 30000, price: 20, deposit: 5,
-    seller: "aleo1z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h",
-    schemaPreview: ["protocol", "pool", "apy", "tvl", "date", "chain"],
-    salesCount: 31, blobHash: stringToField("demo_blob_6"),
-  },
-};
+import { fetchListing, createPurchase, ListingRecord } from "@/lib/listings";
 
 export default function ListingPage() {
   const { id } = useParams();
-  const router = useRouter();
   const pageRef = useRef<HTMLDivElement>(null);
-  const listing = mockListings[id as string];
   const { address, executeTransaction, connected } = useWallet();
+  const [listing, setListing] = useState<ListingRecord | null>(null);
+  const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [txResult, setTxResult] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    fetchListing(id as string).then((found) => {
+      setListing(found);
+      setLoading(false);
+    });
+  }, [id]);
+
   useGSAP(
     () => {
+      if (!listing) return;
       const tl = gsap.timeline({ delay: 0.2 });
       tl.from(".listing-header", { y: 30, opacity: 0, duration: 0.7, ease: "power3.out" })
         .from(".listing-body", { y: 40, opacity: 0, duration: 0.7, ease: "power3.out" }, "-=0.4")
         .from(".listing-sidebar", { y: 50, opacity: 0, duration: 0.7, ease: "power3.out" }, "-=0.4");
     },
-    { scope: pageRef }
+    { scope: pageRef, dependencies: [listing] }
   );
 
   const handlePurchase = async () => {
@@ -91,35 +44,57 @@ export default function ListingPage() {
     setError("");
 
     try {
-      const listingId = stringToField(listing.title + listing.id);
-
       const tx = buildPurchaseTx({
-        listingId,
+        listingId: listing.listingId,
         seller: listing.seller,
         amount: listing.price,
-        blobHash: listing.blobHash,
+        blobHash: stringToField(listing.blobId),
       });
 
       const result = await executeTransaction(tx);
-      setTxResult(result?.transactionId || "submitted");
+      if (!result?.transactionId) {
+        throw new Error("Transaction was rejected or not confirmed");
+      }
+      setTxResult(result.transactionId);
+
+      // Store the purchase in database
+      await createPurchase({
+        listingId: listing.listingId,
+        buyer: address,
+        seller: listing.seller,
+        amount: listing.price,
+        blobHash: stringToField(listing.blobId),
+        txId: result.transactionId,
+      });
     } catch (err: any) {
       console.error("Purchase failed:", err);
-      setError(err.message || "Transaction failed");
+      setError(err.message || "Transaction was rejected by wallet");
     } finally {
       setPurchasing(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!listing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-2">Listing not found</h1>
+          <p className="text-muted mb-4">This listing doesn&apos;t exist or hasn&apos;t been indexed yet.</p>
           <a href="/" className="text-accent hover:underline">Back to marketplace</a>
         </div>
       </div>
     );
   }
+
+  const schemaFields = listing.schemaFields.split(",").map((s) => s.trim()).filter(Boolean);
 
   return (
     <div ref={pageRef}>
@@ -151,7 +126,7 @@ export default function ListingPage() {
               {/* Data Properties */}
               <div className="glass-card rounded-2xl p-6 mb-6">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted mb-4">
-                  Verified Data Properties
+                  Data Properties
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
@@ -160,11 +135,11 @@ export default function ListingPage() {
                   </div>
                   <div>
                     <span className="text-xs text-muted">Columns</span>
-                    <p className="text-xl font-bold">{listing.schemaPreview.length}</p>
+                    <p className="text-xl font-bold">{schemaFields.length}</p>
                   </div>
                   <div>
-                    <span className="text-xs text-muted">Sales</span>
-                    <p className="text-xl font-bold">{listing.salesCount}</p>
+                    <span className="text-xs text-muted">Storage</span>
+                    <p className="text-xl font-bold">Walrus</p>
                   </div>
                 </div>
               </div>
@@ -175,7 +150,7 @@ export default function ListingPage() {
                   Schema
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {listing.schemaPreview.map((col) => (
+                  {schemaFields.map((col) => (
                     <span
                       key={col}
                       className="text-sm font-mono px-3 py-1.5 rounded-lg bg-secondary border border-border text-text-secondary"
@@ -186,6 +161,31 @@ export default function ListingPage() {
                 </div>
               </div>
 
+              {/* On-chain info */}
+              <div className="glass-card rounded-2xl p-6 mb-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted mb-4">
+                  On-Chain Details
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between py-2 border-b border-border">
+                    <span className="text-text-secondary">Program</span>
+                    <span className="font-mono text-xs text-accent">veildatamarket.aleo</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-border">
+                    <span className="text-text-secondary">Listing ID</span>
+                    <span className="font-mono text-xs text-muted">{listing.listingId.slice(0, 20)}...</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-border">
+                    <span className="text-text-secondary">Blob ID (Walrus)</span>
+                    <span className="font-mono text-xs text-muted">{listing.blobId.slice(0, 20)}...</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-text-secondary">Create Tx</span>
+                    <span className="font-mono text-xs text-muted">{listing.txId.slice(0, 20)}...</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Privacy info */}
               <div className="glass-card rounded-2xl p-6">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted mb-4">
@@ -193,10 +193,10 @@ export default function ListingPage() {
                 </h3>
                 <div className="space-y-3 text-sm">
                   {[
-                    { label: "Data contents", status: "Encrypted (AES-256)", private: true },
+                    { label: "Data contents", status: "Encrypted (AES-256-GCM)", private: true },
                     { label: "Buyer identity", status: "Hidden via ZK", private: true },
-                    { label: "Transaction amount", status: "Private escrow", private: true },
-                    { label: "Row count", status: "ZK Verified", private: false },
+                    { label: "Payment amount", status: "Private escrow (credits.aleo)", private: true },
+                    { label: "Row count", status: "Public (on-chain)", private: false },
                     { label: "Schema structure", status: "Public", private: false },
                     { label: "Storage", status: "Walrus (decentralized)", private: false },
                   ].map((item) => (
@@ -223,7 +223,7 @@ export default function ListingPage() {
                 {/* Transaction result */}
                 {txResult && (
                   <div className="mb-4 p-3 rounded-xl bg-accent/10 border border-accent/20">
-                    <p className="text-xs text-accent font-semibold mb-1">Transaction Submitted</p>
+                    <p className="text-xs text-accent font-semibold mb-1">Purchase Submitted</p>
                     <p className="text-xs text-muted font-mono break-all">{txResult}</p>
                   </div>
                 )}
@@ -238,7 +238,7 @@ export default function ListingPage() {
                 {/* Buy button */}
                 {!connected ? (
                   <div className="w-full py-4 text-center text-sm text-muted border border-border rounded-full mb-4">
-                    Connect wallet to purchase
+                    Connect Shield Wallet to purchase
                   </div>
                 ) : (
                   <motion.button
@@ -251,7 +251,7 @@ export default function ListingPage() {
                     {purchasing ? (
                       <span className="flex items-center justify-center gap-2">
                         <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                        Processing...
+                        Approve in Shield Wallet...
                       </span>
                     ) : txResult ? (
                       "Purchased"
@@ -275,14 +275,6 @@ export default function ListingPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Deposit staked</span>
-                    <span className="font-medium">{listing.deposit} ALEO</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Total sales</span>
-                    <span className="font-medium">{listing.salesCount}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">Escrow</span>
                     <span className="text-accent font-mono text-xs">credits.aleo</span>
                   </div>
@@ -294,11 +286,11 @@ export default function ListingPage() {
                   <div className="space-y-2 text-xs text-text-secondary">
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">1.</span>
-                      <span>Your credits go to private escrow</span>
+                      <span>Sign transaction — credits go to private escrow</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">2.</span>
-                      <span>Seller delivers encrypted data + key</span>
+                      <span>Seller delivers encrypted data + decryption key</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">3.</span>
@@ -306,7 +298,7 @@ export default function ListingPage() {
                     </div>
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">4.</span>
-                      <span>Confirm to release payment, or dispute</span>
+                      <span>Confirm to release payment, or dispute for refund</span>
                     </div>
                   </div>
                 </div>
