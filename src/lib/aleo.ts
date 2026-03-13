@@ -131,3 +131,17 @@ export function buildDisputeTx(
     fee: FEE,
   };
 }
+
+/**
+ * Build a claim_timeout_refund transaction (buyer reclaims after deadline).
+ */
+export function buildClaimTimeoutRefundTx(
+  escrowRecord: string
+): TransactionOptions {
+  return {
+    program: PROGRAM_ID,
+    function: "claim_timeout_refund",
+    inputs: [escrowRecord],
+    fee: FEE,
+  };
+}

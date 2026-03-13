@@ -48,7 +48,7 @@ export async function getListingMeta(listingId: string) {
 }
 
 /**
- * Get listing status (1=active, 2=purchased, 3=confirmed, 4=disputed).
+ * Get listing status (1=active, 2=purchased, 3=confirmed, 4=disputed, 5=timed_out).
  */
 export async function getListingStatus(listingId: string): Promise<number | null> {
   const raw = await readMapping("listing_status", listingId);
@@ -84,6 +84,15 @@ export async function getSellerSales(sellerHash: string): Promise<number> {
 }
 
 /**
+ * Get the escrow deadline (block height) for a listing.
+ */
+export async function getEscrowDeadline(listingId: string): Promise<number | null> {
+  const raw = await readMapping("escrow_deadlines", listingId);
+  if (!raw) return null;
+  return parseInt(raw.replace("u32", ""));
+}
+
+/**
  * Status label helper.
  */
 export function statusLabel(status: number): string {
@@ -92,6 +101,7 @@ export function statusLabel(status: number): string {
     case 2: return "In Escrow";
     case 3: return "Completed";
     case 4: return "Disputed";
+    case 5: return "Timed Out";
     default: return "Unknown";
   }
 }
