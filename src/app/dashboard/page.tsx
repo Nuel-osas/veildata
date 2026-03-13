@@ -6,7 +6,7 @@ import gsap from "gsap";
 import { motion } from "framer-motion";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import Footer from "@/components/shared/Footer";
-import { buildClaimTestUsdcxTx, buildBuyVaultStorageTx, buildConvertToPrivateTx } from "@/lib/aleo";
+import { buildClaimTestUsdcxTx, buildBuyVaultStorageTx, buildConvertToPrivateTx, executeWithRetry } from "@/lib/aleo";
 import {
   fetchListings,
   fetchPurchases,
@@ -137,7 +137,7 @@ export default function DashboardPage() {
     try {
       // Convert 2 ALEO to private (enough for platform fee + buffer)
       const tx = buildConvertToPrivateTx(address, 2_000_000);
-      await executeTransaction(tx);
+      await executeWithRetry(executeTransaction, tx);
       setConvertStatus("success");
       setTimeout(() => setConvertStatus("idle"), 5000);
     } catch (err) {
@@ -188,7 +188,7 @@ export default function DashboardPage() {
 
       // Step 1: Send USDCx to program address
       const tx = buildBuyVaultStorageTx(quantity);
-      const result = await executeTransaction(tx);
+      const result = await executeWithRetry(executeTransaction, tx);
       if (!result?.transactionId) {
         throw new Error("Storage payment was rejected or not confirmed");
       }

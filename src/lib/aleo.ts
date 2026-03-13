@@ -141,6 +141,31 @@ export function buildClaimTestUsdcxTx(): TransactionOptions {
 }
 
 /**
+ * Execute a wallet transaction with automatic retry on "No response" errors.
+ * Shield Wallet sometimes fails on the first attempt while waking up.
+ */
+export async function executeWithRetry(
+  executeTransaction: (tx: TransactionOptions) => Promise<{ transactionId?: string } | undefined>,
+  tx: TransactionOptions,
+  maxRetries: number = 1
+): Promise<{ transactionId?: string } | undefined> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await executeTransaction(tx);
+      return result;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("No response") && attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Transaction failed after retries");
+}
+
+/**
  * Convert public ALEO to a private credits record.
  * Needed for create_listing which requires a credits record for the platform fee.
  */

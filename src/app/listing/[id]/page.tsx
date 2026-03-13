@@ -8,7 +8,7 @@ import gsap from "gsap";
 import { motion } from "framer-motion";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import Footer from "@/components/shared/Footer";
-import { buildPurchaseTx, stringToField } from "@/lib/aleo";
+import { buildPurchaseTx, stringToField, executeWithRetry } from "@/lib/aleo";
 import { fetchListing, createPurchase, fetchPurchases, ListingRecord } from "@/lib/listings";
 import { decryptBlob, unpackKey } from "@/lib/crypto";
 import { fetchFromWalrus } from "@/lib/walrus";
@@ -78,7 +78,7 @@ export default function ListingPage() {
 
       console.log("=== PURCHASE TX ===", JSON.stringify(purchaseTx, null, 2));
 
-      const result = await executeTransaction(purchaseTx);
+      const result = await executeWithRetry(executeTransaction, purchaseTx);
       if (!result?.transactionId) {
         throw new Error("Transaction was rejected by wallet");
       }

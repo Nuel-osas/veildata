@@ -9,7 +9,7 @@ import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import Footer from "@/components/shared/Footer";
 import { encryptFile, keyToFields, packKey } from "@/lib/crypto";
 import { uploadToWalrus } from "@/lib/walrus";
-import { buildCreateListingTx, buildPlatformFeeTx, stringToField } from "@/lib/aleo";
+import { buildCreateListingTx, buildPlatformFeeTx, stringToField, executeWithRetry } from "@/lib/aleo";
 import { createListing } from "@/lib/listings";
 
 const categories = [
@@ -105,7 +105,23 @@ export default function SellPage() {
       const packedKey = packKey(encrypted.key, encrypted.iv);
       setEncryptionKey(packedKey);
 
-      // Step 2: Upload encrypted blob to Walrus
+      // Step 2: Pay 0.2 ALEO platform fee (sign before upload to avoid wasting storage)
+      setUploadStatus("signing");
+      setStatusMessage("Approve 0.2 ALEO platform fee in Shield Wallet...");
+
+      try {
+        const feeTx = buildPlatformFeeTx();
+        const feeResult = await executeWithRetry(executeTransaction, feeTx);
+        if (!feeResult?.transactionId) {
+          throw new Error("Fee payment was rejected");
+        }
+        console.log("Platform fee paid:", feeResult.transactionId);
+      } catch (feeErr) {
+        const msg = feeErr instanceof Error ? feeErr.message : "";
+        throw new Error(`Platform fee failed: ${msg || "Transaction rejected."}`);
+      }
+
+      // Step 3: Upload encrypted blob to Walrus (only after fee is confirmed)
       setUploadStatus("uploading");
       setStatusMessage("Uploading encrypted blob to Walrus decentralized storage...");
       let walrusResult;
@@ -123,26 +139,8 @@ export default function SellPage() {
       }
       setBlobId(walrusResult.blobId);
 
-      // Step 3: Pay 0.2 ALEO platform fee (public transfer, no private records)
+      // Step 4: Create listing on-chain (needs blobId from upload)
       setUploadStatus("signing");
-      setStatusMessage("Approve 0.2 ALEO platform fee in Shield Wallet...");
-
-      try {
-        const feeTx = buildPlatformFeeTx();
-        const feeResult = await executeTransaction(feeTx);
-        if (!feeResult?.transactionId) {
-          throw new Error("Fee payment was rejected");
-        }
-        console.log("Platform fee paid:", feeResult.transactionId);
-      } catch (feeErr) {
-        const msg = feeErr instanceof Error ? feeErr.message : "";
-        if (msg.includes("No response")) {
-          throw new Error("Shield Wallet did not respond. Try closing and reopening the extension, then retry.");
-        }
-        throw new Error(`Platform fee failed: ${msg || "Transaction rejected."}`);
-      }
-
-      // Step 4: Create listing on-chain (no private records needed)
       setStatusMessage("Approve listing creation in Shield Wallet...");
 
       const listingId = stringToField(formData.title + Date.now());
@@ -166,13 +164,10 @@ export default function SellPage() {
 
       let result;
       try {
-        result = await executeTransaction(tx);
+        result = await executeWithRetry(executeTransaction, tx);
         console.log("Listing created:", result);
       } catch (txErr) {
         const msg = txErr instanceof Error ? txErr.message : "";
-        if (msg.includes("No response")) {
-          throw new Error("Shield Wallet did not respond. Try closing and reopening the extension, then retry.");
-        }
         throw new Error(`Listing creation failed: ${msg || "Transaction rejected."}`);
       }
       if (!result?.transactionId) {
