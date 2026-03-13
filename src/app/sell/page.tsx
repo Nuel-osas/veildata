@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion } from "framer-motion";
@@ -148,9 +149,11 @@ export default function SellPage() {
       setUploadStatus("done");
       setStatusMessage("Listing created on Aleo and data stored on Walrus!");
       setStep(3);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong";
       setUploadStatus("error");
-      setError(err.message || "Something went wrong");
+      setError(message);
       setStatusMessage("");
     }
   };
@@ -557,12 +560,12 @@ export default function SellPage() {
                   </div>
                 )}
 
-                <a
+                <Link
                   href="/"
                   className="inline-block px-8 py-3 bg-accent text-black font-semibold rounded-full hover:bg-accent-dim transition-colors"
                 >
                   View Marketplace
-                </a>
+                </Link>
               </motion.div>
             )}
           </form>

@@ -80,10 +80,10 @@ export function buildPurchaseTx(
 
 /**
  * Build a deliver transaction (seller sends decryption key to buyer).
+ * The SellerNote record is auto-resolved by the wallet.
  */
 export function buildDeliverTx(
   params: {
-    sellerNote: string;
     blobId1: string;
     blobId2: string;
     decryptionKey1: string;
@@ -94,7 +94,6 @@ export function buildDeliverTx(
     program: PROGRAM_ID,
     function: "deliver",
     inputs: [
-      params.sellerNote,
       params.blobId1,
       params.blobId2,
       params.decryptionKey1,
@@ -106,42 +105,39 @@ export function buildDeliverTx(
 
 /**
  * Build a confirm_receipt transaction (buyer releases payment).
+ * The BuyerEscrow record is auto-resolved by the wallet.
  */
-export function buildConfirmReceiptTx(
-  escrowRecord: string
-): TransactionOptions {
+export function buildConfirmReceiptTx(): TransactionOptions {
   return {
     program: PROGRAM_ID,
     function: "confirm_receipt",
-    inputs: [escrowRecord],
+    inputs: [],
     fee: FEE,
   };
 }
 
 /**
  * Build a dispute transaction.
+ * The BuyerEscrow record is auto-resolved by the wallet.
  */
-export function buildDisputeTx(
-  escrowRecord: string
-): TransactionOptions {
+export function buildDisputeTx(): TransactionOptions {
   return {
     program: PROGRAM_ID,
     function: "dispute",
-    inputs: [escrowRecord],
+    inputs: [],
     fee: FEE,
   };
 }
 
 /**
  * Build a claim_timeout_refund transaction (buyer reclaims after deadline).
+ * The BuyerEscrow record is auto-resolved by the wallet.
  */
-export function buildClaimTimeoutRefundTx(
-  escrowRecord: string
-): TransactionOptions {
+export function buildClaimTimeoutRefundTx(): TransactionOptions {
   return {
     program: PROGRAM_ID,
     function: "claim_timeout_refund",
-    inputs: [escrowRecord],
+    inputs: [],
     fee: FEE,
   };
 }

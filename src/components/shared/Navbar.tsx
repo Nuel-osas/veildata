@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
@@ -15,60 +15,67 @@ const navLinks = [
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { connected, address } = useWallet();
+  const { connected } = useWallet();
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 glass-card">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-            <span className="text-black font-bold text-sm">V</span>
+    <nav className="fixed top-0 left-0 z-50 w-full px-4 pt-4 md:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/8 bg-black/50 px-5 py-3 backdrop-blur-xl">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent">
+            <span className="text-sm font-bold text-black">V</span>
           </div>
-          <span className="text-xl font-semibold tracking-tight">
-            Veil<span className="text-accent">Data</span>
-          </span>
+          <div>
+            <span className="font-display text-xl uppercase tracking-[-0.04em]">
+              Veil<span className="text-accent">Data</span>
+            </span>
+            <p className="hidden text-[0.6rem] font-mono uppercase tracking-[0.24em] text-muted md:block">
+              confidential exchange
+            </p>
+          </div>
         </Link>
 
-        {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm text-text-secondary hover:text-foreground transition-colors duration-300"
-            >
-              {link.label}
-            </Link>
-          ))}
+        <div className="hidden items-center gap-3 md:flex">
+          {connected && (
+            <div className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[0.65rem] font-mono uppercase tracking-[0.24em] text-accent">
+              Wallet live
+            </div>
+          )}
+          <div className="flex items-center gap-2 rounded-full border border-white/6 bg-white/3 px-3 py-2">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-full px-4 py-2 text-xs uppercase tracking-[0.2em] text-text-secondary transition-colors duration-300 hover:text-foreground"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
         </div>
 
-        {/* Connect Wallet — uses official WalletMultiButton */}
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-3 md:flex">
           <WalletMultiButton network={Network.TESTNET} />
         </div>
 
-        {/* Mobile Menu Toggle */}
         <button
-          className="md:hidden flex flex-col gap-1.5"
+          className="flex flex-col gap-1.5 md:hidden"
           onClick={() => setIsOpen(!isOpen)}
         >
           <motion.span
             animate={isOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
-            className="block w-6 h-0.5 bg-foreground"
+            className="block h-0.5 w-6 bg-foreground"
           />
           <motion.span
             animate={isOpen ? { opacity: 0 } : { opacity: 1 }}
-            className="block w-6 h-0.5 bg-foreground"
+            className="block h-0.5 w-6 bg-foreground"
           />
           <motion.span
             animate={isOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
-            className="block w-6 h-0.5 bg-foreground"
+            className="block h-0.5 w-6 bg-foreground"
           />
         </button>
       </div>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -76,20 +83,20 @@ export default function Navbar() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.65, 0, 0.35, 1] }}
-            className="md:hidden overflow-hidden border-t border-border"
+            className="mx-auto mt-3 max-w-7xl overflow-hidden rounded-[1.6rem] border border-white/8 bg-black/70 backdrop-blur-xl md:hidden"
           >
-            <div className="px-6 py-4 flex flex-col gap-4">
+            <div className="flex flex-col gap-4 px-6 py-5">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setIsOpen(false)}
-                  className="text-lg text-text-secondary hover:text-foreground transition-colors"
+                  className="font-display text-2xl uppercase tracking-[-0.04em] text-foreground"
                 >
                   {link.label}
                 </Link>
               ))}
-              <div className="mt-2">
+              <div className="mt-3">
                 <WalletMultiButton network={Network.TESTNET} />
               </div>
             </div>

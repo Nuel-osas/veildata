@@ -8,59 +8,61 @@ import { motion } from "framer-motion";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const features = [
+const cards = [
   {
-    title: "Zero-Knowledge Proofs",
-    desc: "Sellers prove data quality — row count, schema, completeness — without revealing a single byte of actual data.",
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-      </svg>
-    ),
+    title: "ZK quality signals",
+    desc: "Sellers prove the shape and value of a dataset without exposing the dataset itself.",
+    tone: "accent",
+    eyebrow: "Listing logic",
+    span: "lg:col-span-7",
   },
   {
-    title: "Private Escrow",
-    desc: "Payments are locked in Aleo smart contracts. Amounts, buyer, and seller identities stay hidden from everyone else.",
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-      </svg>
-    ),
+    title: "Private escrow",
+    desc: "Payment is part of the structure, but the transaction does not become public theatre.",
+    tone: "dark",
+    eyebrow: "Settlement",
+    span: "lg:col-span-5",
   },
   {
-    title: "Encrypted Storage",
-    desc: "Data is AES-256 encrypted client-side before upload. Stored on Walrus. Only the buyer's decryption key unlocks it.",
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
-      </svg>
-    ),
+    title: "Ciphertext on Walrus",
+    desc: "Storage is decentralized, but what gets stored is unreadable until the buyer receives the key.",
+    tone: "dark",
+    eyebrow: "Storage",
+    span: "lg:col-span-5",
   },
   {
-    title: "Dispute Protection",
-    desc: "Sellers stake a deposit. If the data doesn't match its ZK-proven properties, buyers dispute and the seller loses their stake.",
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" />
-      </svg>
-    ),
+    title: "Seller stakes keep the market honest",
+    desc: "Deposits and disputes create consequences. That makes the marketplace credible, not just private.",
+    tone: "muted",
+    eyebrow: "Integrity",
+    span: "lg:col-span-7",
   },
 ];
+
+function toneClasses(tone: string) {
+  if (tone === "accent") {
+    return "bg-accent text-black border-accent";
+  }
+  if (tone === "muted") {
+    return "bg-[#141414] text-foreground border-white/10";
+  }
+  return "bg-[#101010] text-foreground border-white/10";
+}
 
 export default function Features() {
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
-      gsap.from(".feature-card", {
-        y: 50,
+      gsap.from(".feature-panel", {
+        y: 48,
         opacity: 0,
-        duration: 0.7,
+        duration: 0.8,
         ease: "power3.out",
-        stagger: 0.12,
+        stagger: 0.1,
         scrollTrigger: {
           trigger: sectionRef.current,
-          start: "top 70%",
+          start: "top 72%",
           toggleActions: "play none none reverse",
         },
       });
@@ -69,32 +71,55 @@ export default function Features() {
   );
 
   return (
-    <section ref={sectionRef} className="py-32 px-6 bg-secondary/30">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <span className="text-xs font-mono text-accent uppercase tracking-widest">
-            Why VeilData
-          </span>
-          <h2 className="text-4xl md:text-6xl font-bold mt-4">
-            Trust without transparency.
-          </h2>
+    <section ref={sectionRef} className="px-4 py-24 md:px-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-12 border-t border-white/10 pt-8">
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+            <div>
+              <div className="section-kicker">Why it works</div>
+              <h2 className="mt-6 font-display text-[clamp(3.2rem,6vw,6.5rem)] uppercase leading-[0.88] tracking-[-0.06em]">
+                Privacy with
+                <br />
+                <span className="text-accent">market structure</span>
+              </h2>
+            </div>
+            <p className="max-w-2xl text-base leading-relaxed text-text-secondary md:text-lg">
+              The references work because each block has a clear point of view.
+              This section now does the same: fewer cards, stronger hierarchy,
+              and more contrast between ideas.
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {features.map((feature) => (
-            <motion.div
-              key={feature.title}
-              whileHover={{ scale: 1.01 }}
-              className="feature-card glass-card rounded-2xl p-8 hover:border-border-hover transition-all duration-300"
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          {cards.map((card, index) => (
+            <motion.article
+              key={card.title}
+              whileHover={{ y: -6, rotate: index % 2 === 0 ? -0.4 : 0.4 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className={`feature-panel ${card.span} group relative overflow-hidden rounded-[2.1rem] border p-7 md:p-9 ${toneClasses(card.tone)}`}
             >
-              <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent mb-5">
-                {feature.icon}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.09),transparent_36%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+              <div className="relative flex h-full flex-col justify-between gap-14">
+                <div className="flex items-center justify-between">
+                  <span className={`text-[0.68rem] font-mono uppercase tracking-[0.24em] ${card.tone === "accent" ? "text-black/60" : "text-muted"}`}>
+                    {card.eyebrow}
+                  </span>
+                  <span className={`font-display text-4xl leading-none tracking-[-0.06em] ${card.tone === "accent" ? "text-black/25" : "text-white/10"}`}>
+                    0{index + 1}
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className={`max-w-[16ch] font-display text-[2.4rem] uppercase leading-[0.9] tracking-[-0.05em] md:text-[3rem] ${card.tone === "accent" ? "text-black" : "text-foreground"}`}>
+                    {card.title}
+                  </h3>
+                  <p className={`mt-4 max-w-2xl text-sm leading-relaxed md:text-base ${card.tone === "accent" ? "text-black/75" : "text-text-secondary"}`}>
+                    {card.desc}
+                  </p>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-              <p className="text-text-secondary leading-relaxed">
-                {feature.desc}
-              </p>
-            </motion.div>
+            </motion.article>
           ))}
         </div>
       </div>

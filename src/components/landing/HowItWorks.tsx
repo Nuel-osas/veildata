@@ -10,27 +10,23 @@ gsap.registerPlugin(ScrollTrigger);
 const steps = [
   {
     num: "01",
-    title: "Encrypt & Upload",
-    desc: "Your data is encrypted client-side with AES-256. Only the encrypted blob is stored on Walrus. No one — not even us — can read it.",
-    icon: "🔐",
+    title: "Encrypt locally",
+    desc: "The seller never uploads a readable file. Only ciphertext leaves the browser.",
   },
   {
     num: "02",
-    title: "List on Marketplace",
-    desc: "Create a private listing on Aleo with ZK proofs of your data's properties — row count, schema, quality — without revealing the data itself.",
-    icon: "📋",
+    title: "List the signal",
+    desc: "Row count, schema, price, and other proof-backed market cues go public. The file does not.",
   },
   {
     num: "03",
-    title: "Buyer Pays into Escrow",
-    desc: "Buyers pay with ALEO credits into a private escrow smart contract. Transaction amounts and parties stay hidden from everyone else.",
-    icon: "🔒",
+    title: "Escrow privately",
+    desc: "The buyer commits funds in Aleo without turning the purchase into a public broadcast.",
   },
   {
     num: "04",
-    title: "Private Delivery",
-    desc: "The decryption key is delivered through a private Aleo record — only the buyer can access it. They decrypt locally. Done.",
-    icon: "✉️",
+    title: "Release access",
+    desc: "The key moves privately to the buyer, who decrypts locally and confirms before settlement.",
   },
 ];
 
@@ -39,29 +35,27 @@ export default function HowItWorks() {
 
   useGSAP(
     () => {
-      gsap.from(".step-card", {
-        y: 60,
+      gsap.from(".flow-intro", {
+        y: 24,
         opacity: 0,
-        duration: 0.8,
+        duration: 0.7,
         ease: "power3.out",
-        stagger: 0.15,
+        stagger: 0.1,
         scrollTrigger: {
           trigger: sectionRef.current,
-          start: "top 70%",
-          end: "bottom 80%",
-          toggleActions: "play none none reverse",
+          start: "top 78%",
         },
       });
 
-      // Animate the connecting line
-      gsap.from(".step-line", {
-        scaleY: 0,
-        transformOrigin: "top",
-        duration: 1.5,
-        ease: "power2.out",
+      gsap.from(".flow-row", {
+        y: 42,
+        opacity: 0,
+        duration: 0.7,
+        ease: "power3.out",
+        stagger: 0.1,
         scrollTrigger: {
           trigger: sectionRef.current,
-          start: "top 60%",
+          start: "top 72%",
           toggleActions: "play none none reverse",
         },
       });
@@ -70,59 +64,47 @@ export default function HowItWorks() {
   );
 
   return (
-    <section ref={sectionRef} className="py-32 px-6 relative">
-      <div className="max-w-5xl mx-auto">
-        {/* Section header */}
-        <div className="text-center mb-20">
-          <span className="text-xs font-mono text-accent uppercase tracking-widest">
-            How it works
-          </span>
-          <h2 className="text-4xl md:text-6xl font-bold mt-4">
-            Privacy by default.
-          </h2>
-          <p className="text-text-secondary mt-4 text-lg max-w-xl mx-auto">
-            Four steps. Zero data exposure.
-          </p>
-        </div>
+    <section ref={sectionRef} className="px-4 py-28 md:px-6">
+      <div className="mx-auto max-w-7xl border-t border-white/10 pt-8">
+        <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+          <div className="flow-intro">
+            <div className="section-kicker">The deal flow</div>
+            <h2 className="mt-6 font-display text-[clamp(3.4rem,7vw,7rem)] uppercase leading-[0.88] tracking-[-0.06em]">
+              Four moves.
+              <br />
+              <span className="text-accent">No leaks.</span>
+            </h2>
+          </div>
 
-        {/* Steps */}
-        <div className="relative">
-          {/* Vertical line */}
-          <div className="step-line absolute left-8 md:left-1/2 top-0 bottom-0 w-px bg-border hidden md:block" />
+          <div>
+            <p className="flow-intro max-w-2xl text-base leading-relaxed text-text-secondary md:text-lg">
+              This section should read like market choreography, not feature
+              documentation. One row per action. No filler. No over-explaining.
+            </p>
 
-          <div className="space-y-12 md:space-y-24">
-            {steps.map((step, i) => (
-              <div
-                key={step.num}
-                className={`step-card flex flex-col md:flex-row items-start gap-6 md:gap-12 ${
-                  i % 2 === 1 ? "md:flex-row-reverse" : ""
-                }`}
-              >
-                {/* Content */}
+            <div className="mt-10">
+              {steps.map((step) => (
                 <div
-                  className={`flex-1 ${
-                    i % 2 === 1 ? "md:text-right" : ""
-                  }`}
+                  key={step.num}
+                  className="flow-row group grid gap-4 border-b border-white/10 py-6 md:grid-cols-[120px_1fr_60px] md:items-start"
                 >
-                  <span className="text-5xl mb-4 block">{step.icon}</span>
-                  <span className="text-xs font-mono text-accent">
+                  <div className="font-display text-[3rem] leading-none tracking-[-0.06em] text-accent">
                     {step.num}
-                  </span>
-                  <h3 className="text-2xl md:text-3xl font-semibold mt-2">
-                    {step.title}
-                  </h3>
-                  <p className="text-text-secondary mt-3 leading-relaxed max-w-md">
-                    {step.desc}
-                  </p>
+                  </div>
+                  <div>
+                    <h3 className="font-display text-[2rem] uppercase leading-[0.9] tracking-[-0.05em]">
+                      {step.title}
+                    </h3>
+                    <p className="mt-3 max-w-2xl text-sm leading-relaxed text-text-secondary md:text-base">
+                      {step.desc}
+                    </p>
+                  </div>
+                  <div className="hidden pt-2 text-right text-xl text-muted transition-transform duration-300 group-hover:translate-x-1 group-hover:text-accent md:block">
+                    &rarr;
+                  </div>
                 </div>
-
-                {/* Center dot */}
-                <div className="hidden md:flex items-center justify-center w-4 h-4 rounded-full bg-accent shrink-0 relative z-10 mt-12" />
-
-                {/* Spacer for alternating layout */}
-                <div className="flex-1 hidden md:block" />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

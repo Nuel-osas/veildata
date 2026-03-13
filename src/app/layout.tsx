@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import ClientProviders from "@/components/shared/ClientProviders";
 import Navbar from "@/components/shared/Navbar";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+const neueMontreal = localFont({
+  src: "../../../ochi.design-UI-Clone/src/assets/NeueMontreal-Regular.ttf",
+  variable: "--font-neue",
+  display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const foundersGrotesk = localFont({
+  src: "../../../ochi.design-UI-Clone/src/assets/FoundersGrotesk-Semibold.ttf",
+  variable: "--font-founders",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased noise`}
+        className={`${neueMontreal.variable} ${foundersGrotesk.variable} antialiased noise`}
       >
         <ClientProviders>
           <Navbar />

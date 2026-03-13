@@ -27,33 +27,48 @@ export default function MarketplaceGrid() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    fetchListings(activeCategory).then((data) => {
-      const mapped: ListingData[] = data.map((l) => ({
-        id: l.listingId,
-        title: l.title,
-        description: l.description,
-        category: l.category,
-        rowCount: l.rowCount,
-        price: l.price,
-        seller: l.seller,
-        schemaPreview: l.schemaFields.split(",").map((s) => s.trim()).filter(Boolean),
+    let cancelled = false;
+
+    async function loadListings() {
+      setLoading(true);
+      const data = await fetchListings(activeCategory);
+      if (cancelled) return;
+
+      const mapped: ListingData[] = data.map((listing) => ({
+        id: listing.listingId,
+        title: listing.title,
+        description: listing.description,
+        category: listing.category,
+        rowCount: listing.rowCount,
+        price: listing.price,
+        seller: listing.seller,
+        schemaPreview: listing.schemaFields
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
         salesCount: 0,
       }));
+
       setListings(mapped);
       setLoading(false);
-    });
+    }
+
+    void loadListings();
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeCategory]);
 
   useGSAP(
     () => {
       if (listings.length === 0) return;
       gsap.from(".listing-card", {
-        y: 40,
+        y: 34,
         opacity: 0,
         duration: 0.6,
         ease: "power3.out",
-        stagger: 0.08,
+        stagger: 0.07,
         scrollTrigger: {
           trigger: sectionRef.current,
           start: "top 75%",
@@ -65,47 +80,49 @@ export default function MarketplaceGrid() {
   );
 
   return (
-    <section id="marketplace" ref={sectionRef} className="py-32 px-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+    <section id="marketplace" ref={sectionRef} className="px-4 py-28 md:px-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid gap-8 border-t border-white/10 pb-10 pt-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <div>
-            <span className="text-xs font-mono text-accent uppercase tracking-widest">
-              Marketplace
-            </span>
-            <h2 className="text-4xl md:text-5xl font-bold mt-3">
-              Browse datasets
+            <div className="section-kicker">Marketplace</div>
+            <h2 className="mt-6 font-display text-[clamp(3.2rem,6vw,6.2rem)] uppercase leading-[0.88] tracking-[-0.06em]">
+              Buy the signal.
+              <br />
+              <span className="text-accent">Unlock the file later.</span>
             </h2>
-            <p className="text-text-secondary mt-2">
-              All transactions are private. Sellers verified on-chain.
-            </p>
           </div>
 
-          {/* Category filters */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 text-xs font-mono rounded-full border transition-all duration-300 ${
-                  activeCategory === cat
-                    ? "bg-accent text-black border-accent"
-                    : "border-border text-muted hover:border-border-hover hover:text-foreground"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+          <div className="space-y-6">
+            <p className="max-w-2xl text-base leading-relaxed text-text-secondary md:text-lg">
+              The board should feel selective. Each listing is a proposition,
+              not a pile of metadata. The structure below is tighter and more
+              editorial for that reason.
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setActiveCategory(category)}
+                  className={`rounded-full border px-4 py-2 text-xs font-mono uppercase tracking-[0.18em] transition-all duration-300 ${
+                    activeCategory === category
+                      ? "border-accent bg-accent text-black"
+                      : "border-white/10 text-muted hover:border-accent/30 hover:text-foreground"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Grid */}
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           </div>
         ) : listings.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {listings.map((listing) => (
               <div key={listing.id} className="listing-card">
                 <ListingCard listing={listing} />
@@ -113,18 +130,22 @@ export default function MarketplaceGrid() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20">
-            <div className="text-5xl mb-4">🔒</div>
-            <p className="text-lg font-medium mb-2">No datasets listed yet</p>
-            <p className="text-sm text-muted mb-6">
-              Be the first to list your data on the confidential marketplace.
-            </p>
-            <Link
-              href="/sell"
-              className="inline-block px-8 py-3 bg-accent text-black font-semibold rounded-full hover:bg-accent-dim transition-colors"
-            >
-              List Your Data
-            </Link>
+          <div className="border-t border-white/10 py-16">
+            <div className="max-w-xl">
+              <p className="font-display text-[3rem] uppercase leading-[0.9] tracking-[-0.06em] text-accent">
+                No listings yet.
+              </p>
+              <p className="mt-4 text-sm leading-relaxed text-text-secondary">
+                That is normal for a fresh market. The first strong listing sets
+                the tone for the rest of the board.
+              </p>
+              <Link
+                href="/sell"
+                className="mt-8 inline-flex rounded-full bg-accent px-8 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-black transition-transform duration-300 hover:-translate-y-1"
+              >
+                Create the first listing
+              </Link>
+            </div>
           </div>
         )}
       </div>

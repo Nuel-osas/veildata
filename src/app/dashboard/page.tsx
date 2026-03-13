@@ -50,11 +50,11 @@ export default function DashboardPage() {
     { scope: pageRef }
   );
 
-  const handleConfirm = async (escrowRecord: string) => {
+  const handleConfirm = async () => {
     if (!address || !executeTransaction) return;
     setActionLoading("confirm");
     try {
-      const tx = buildConfirmReceiptTx(escrowRecord);
+      const tx = buildConfirmReceiptTx();
       await executeTransaction(tx);
     } catch (err) {
       console.error("Confirm failed:", err);
@@ -62,11 +62,11 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
-  const handleDispute = async (escrowRecord: string) => {
+  const handleDispute = async () => {
     if (!address || !executeTransaction) return;
     setActionLoading("dispute");
     try {
-      const tx = buildDisputeTx(escrowRecord);
+      const tx = buildDisputeTx();
       await executeTransaction(tx);
     } catch (err) {
       console.error("Dispute failed:", err);
@@ -78,19 +78,15 @@ export default function DashboardPage() {
     if (!address || !executeTransaction) return;
     setActionLoading(`deliver-${listing.listingId}`);
     try {
-      // Fetch the encryption key from PostgreSQL
       const packedKey = await fetchEncryptionKey(listing.listingId, address);
       if (!packedKey) throw new Error("Encryption key not found");
 
-      const { key, iv } = unpackKey(packedKey);
+      const { key } = unpackKey(packedKey);
       const [keyField1, keyField2] = keyToFields(key);
       const blobId1 = stringToField(listing.blobId);
       const blobId2 = stringToField(listing.blobId + "_iv");
 
-      // Build and send the deliver transaction
-      // The SellerNote record is consumed from the wallet
       const tx = buildDeliverTx({
-        sellerNote: "SELLER_NOTE_RECORD",
         blobId1,
         blobId2,
         decryptionKey1: keyField1,
@@ -103,11 +99,11 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
-  const handleClaimTimeout = async (escrowRecord: string) => {
+  const handleClaimTimeout = async () => {
     if (!address || !executeTransaction) return;
     setActionLoading("timeout");
     try {
-      const tx = buildClaimTimeoutRefundTx(escrowRecord);
+      const tx = buildClaimTimeoutRefundTx();
       await executeTransaction(tx);
     } catch (err) {
       console.error("Timeout refund failed:", err);
@@ -201,7 +197,7 @@ export default function DashboardPage() {
                         </span>
                         <div className="flex gap-2">
                           <motion.button
-                            onClick={() => handleConfirm("ESCROW_RECORD")}
+                            onClick={() => handleConfirm()}
                             disabled={actionLoading === "confirm"}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -210,7 +206,7 @@ export default function DashboardPage() {
                             {actionLoading === "confirm" ? "..." : "Confirm"}
                           </motion.button>
                           <motion.button
-                            onClick={() => handleDispute("ESCROW_RECORD")}
+                            onClick={() => handleDispute()}
                             disabled={actionLoading === "dispute"}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -219,7 +215,7 @@ export default function DashboardPage() {
                             {actionLoading === "dispute" ? "..." : "Dispute"}
                           </motion.button>
                           <motion.button
-                            onClick={() => handleClaimTimeout("ESCROW_RECORD")}
+                            onClick={() => handleClaimTimeout()}
                             disabled={actionLoading === "timeout"}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}

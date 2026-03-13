@@ -19,6 +19,7 @@ export async function GET(
   }
 
   // Don't expose the encryption key in public listing responses
-  const { encryptionKey: _key, ...publicListing } = listing;
+  const publicListing = { ...listing };
+  delete (publicListing as { encryptionKey?: string }).encryptionKey;
   return NextResponse.json(publicListing);
 }

@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion } from "framer-motion";
@@ -66,9 +67,13 @@ export default function ListingPage() {
         blobHash: stringToField(listing.blobId),
         txId: result.transactionId,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Transaction was rejected by wallet";
       console.error("Purchase failed:", err);
-      setError(err.message || "Transaction was rejected by wallet");
+      setError(message);
     } finally {
       setPurchasing(false);
     }
@@ -88,7 +93,9 @@ export default function ListingPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-2">Listing not found</h1>
           <p className="text-muted mb-4">This listing doesn&apos;t exist or hasn&apos;t been indexed yet.</p>
-          <a href="/" className="text-accent hover:underline">Back to marketplace</a>
+          <Link href="/" className="text-accent hover:underline">
+            Back to marketplace
+          </Link>
         </div>
       </div>
     );
@@ -102,9 +109,9 @@ export default function ListingPage() {
         <div className="max-w-6xl mx-auto">
           {/* Breadcrumb */}
           <div className="listing-header mb-8">
-            <a href="/" className="text-sm text-muted hover:text-foreground transition-colors font-mono">
+            <Link href="/" className="text-sm text-muted hover:text-foreground transition-colors font-mono">
               &larr; Back to Marketplace
-            </a>
+            </Link>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-8">

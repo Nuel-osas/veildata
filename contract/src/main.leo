@@ -1,6 +1,6 @@
 import credits.aleo;
 
-program veildatamarket.aleo {
+program veildatamarketv2.aleo {
 
     @noupgrade
     async constructor() {}
