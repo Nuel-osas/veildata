@@ -1,15 +1,19 @@
 /**
  * Aleo contract interaction helpers.
- * Builds TransactionOptions for the veildatamarketv3.aleo program,
+ * Builds TransactionOptions for the veildatamarketv7.aleo program,
  * compatible with the Provable Shield wallet adapter.
  */
 
 import { TransactionOptions } from "@provablehq/aleo-types";
 
-const PROGRAM_ID = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv3.aleo";
+const PROGRAM_ID = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv8.aleo";
 const FEE = 500_000; // 0.5 ALEO in microcredits
-// Program address for veildatamarketv3.aleo (escrow destination)
+// Program address for veildatamarketv7.aleo (escrow destination)
 const PROGRAM_ADDRESS = "aleo17kc2tkll7plruvg4kvd9p93udknx977dldrw7me02znh5naf0u8sf5zd88";
+// Pool address (receives platform listing fees)
+const POOL_ADDRESS = "aleo12m9nrm9fqvvfj6sm7mqw5quwklqldfedu8kv43rnp33v09aqlvgq5hck26";
+// Platform fee: 0.2 ALEO = 200_000 microcredits
+const PLATFORM_FEE = 200_000;
 // USDCx has 6 decimals
 const USDCX_DECIMALS = 1_000_000;
 
@@ -40,8 +44,8 @@ export function buildCreateListingTx(
     schemaHash: string;
   }
 ): TransactionOptions {
-  // Contract expects 9 params but param 6 (fee_payment) is a credits record
-  // that Shield Wallet auto-resolves. We pass only the 8 non-record params.
+  // v6: No credits record needed. All 8 params are plain inputs.
+  // Platform fee (0.2 ALEO) is paid separately via credits.aleo/transfer_public.
   return {
     program: PROGRAM_ID,
     function: "create_listing",
@@ -61,9 +65,26 @@ export function buildCreateListingTx(
 }
 
 /**
+ * Build a platform fee payment transaction (0.2 ALEO to pool).
+ * Called before create_listing — public transfer, no private records needed.
+ */
+export function buildPlatformFeeTx(): TransactionOptions {
+  return {
+    program: "credits.aleo",
+    function: "transfer_public",
+    inputs: [
+      POOL_ADDRESS,
+      PLATFORM_FEE.toString() + "u64",
+    ],
+    fee: FEE,
+    privateFee: false,
+  };
+}
+
+/**
  * Build a purchase transaction via the contract.
- * Calls veildatamarketv3.aleo/purchase which handles USDCx escrow,
- * creates BuyerEscrow + SellerNote records, and updates listing status.
+ * Calls veildatamarketv8.aleo/purchase which sends USDCx directly to the seller
+ * via transfer_public_as_signer, with ZK privacy for the buyer.
  */
 export function buildPurchaseTx(
   params: {
@@ -73,7 +94,6 @@ export function buildPurchaseTx(
     blobHash: string;
   }
 ): TransactionOptions {
-  // Contract signature: purchase(listing_id: field, seller: address, amount: u128, blob_hash: field)
   return {
     program: PROGRAM_ID,
     function: "purchase",

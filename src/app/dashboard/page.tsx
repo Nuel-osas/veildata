@@ -10,6 +10,7 @@ import { buildClaimTestUsdcxTx, buildBuyVaultStorageTx, buildConvertToPrivateTx 
 import {
   fetchListings,
   fetchPurchases,
+  fetchListing,
   ListingRecord,
   PurchaseRecord,
 } from "@/lib/listings";
@@ -116,23 +117,6 @@ export default function DashboardPage() {
     },
     { scope: pageRef }
   );
-
-  const handleDeliver = async (listing: ListingRecord) => {
-    if (!address) return;
-    setActionLoading(`deliver-${listing.listingId}`);
-    try {
-      const res = await fetch("/api/listings/deliver", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId: listing.listingId, seller: address }),
-      });
-      if (!res.ok) throw new Error("Deliver failed");
-      fetchListings().then(setMyListings);
-    } catch (err) {
-      console.error("Deliver failed:", err);
-    }
-    setActionLoading(null);
-  };
 
   const [convertStatus, setConvertStatus] = useState<"idle" | "success" | "error" | "insufficient">("idle");
 
@@ -307,6 +291,43 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
+  const handleDownloadPurchase = async (purchase: PurchaseRecord) => {
+    if (!address) return;
+    setActionLoading(`download-purchase-${purchase.txId}`);
+    try {
+      // Fetch listing details to get blobId and title
+      const listing = await fetchListing(purchase.listingId);
+      if (!listing) throw new Error("Listing not found");
+
+      // Fetch decryption key
+      const keyRes = await fetch(`/api/listings/${purchase.listingId}/key?address=${address}`);
+      if (!keyRes.ok) {
+        const data = await keyRes.json();
+        throw new Error(data.error || "Could not retrieve decryption key");
+      }
+      const { encryptionKey } = await keyRes.json();
+      const { key, iv } = unpackKey(encryptionKey);
+
+      // Fetch and decrypt
+      const encryptedData = await fetchFromWalrus(listing.blobId);
+      const decrypted = await decryptBlob(encryptedData, key, iv);
+
+      // Trigger download
+      const blob = new Blob([decrypted]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${listing.title.replace(/\s+/g, "_")}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+    }
+    setActionLoading(null);
+  };
+
   const usagePercent = vaultStorage.totalBytes > 0
     ? Math.min(100, (vaultStorage.usedBytes / vaultStorage.totalBytes) * 100)
     : 0;
@@ -458,13 +479,18 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="text-accent font-bold">{p.amount} USDCx</span>
-                        <span className={`text-xs font-mono px-2.5 py-1 rounded-full ${
-                          p.status === "delivered"
-                            ? "text-green-400 bg-green-400/10"
-                            : "text-yellow-400 bg-yellow-400/10"
-                        }`}>
-                          {p.status === "delivered" ? "delivered" : "in escrow"}
+                        <span className="text-xs font-mono px-2.5 py-1 rounded-full text-green-400 bg-green-400/10">
+                          completed
                         </span>
+                        <motion.button
+                          onClick={() => handleDownloadPurchase(p)}
+                          disabled={actionLoading === `download-purchase-${p.txId}`}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="px-4 py-2 bg-accent text-black text-xs font-semibold rounded-full disabled:opacity-50"
+                        >
+                          {actionLoading === `download-purchase-${p.txId}` ? "Decrypting..." : "Download"}
+                        </motion.button>
                       </div>
                     </motion.div>
                   ))
@@ -512,17 +538,6 @@ export default function DashboardPage() {
                         }`}>
                           {l.status}
                         </span>
-                        {l.status === "active" && l.hasEncryptionKey && (
-                          <motion.button
-                            onClick={() => handleDeliver(l)}
-                            disabled={actionLoading === `deliver-${l.listingId}`}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="px-4 py-2 bg-accent text-black text-xs font-semibold rounded-full disabled:opacity-50"
-                          >
-                            {actionLoading === `deliver-${l.listingId}` ? "..." : "Deliver Key"}
-                          </motion.button>
-                        )}
                       </div>
                     </motion.div>
                   ))

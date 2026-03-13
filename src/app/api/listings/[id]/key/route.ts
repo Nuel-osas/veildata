@@ -32,14 +32,12 @@ export async function GET(
     return NextResponse.json({ encryptionKey: listing.encryptionKey });
   }
 
-  // Buyer can access only after delivery
-  if (listing.status === "delivered") {
-    const purchase = await prisma.purchase.findFirst({
-      where: { listingId: id, buyer: address },
-    });
-    if (purchase) {
-      return NextResponse.json({ encryptionKey: listing.encryptionKey });
-    }
+  // Buyer can access after purchasing
+  const purchase = await prisma.purchase.findFirst({
+    where: { listingId: id, buyer: address },
+  });
+  if (purchase) {
+    return NextResponse.json({ encryptionKey: listing.encryptionKey });
   }
 
   return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

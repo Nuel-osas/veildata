@@ -10,6 +10,8 @@ import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import Footer from "@/components/shared/Footer";
 import { buildPurchaseTx, stringToField } from "@/lib/aleo";
 import { fetchListing, createPurchase, fetchPurchases, ListingRecord } from "@/lib/listings";
+import { decryptBlob, unpackKey } from "@/lib/crypto";
+import { fetchFromWalrus } from "@/lib/walrus";
 
 export default function ListingPage() {
   const { id } = useParams();
@@ -21,6 +23,7 @@ export default function ListingPage() {
   const [txResult, setTxResult] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [alreadyBought, setAlreadyBought] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +67,7 @@ export default function ListingPage() {
     setError("");
 
     try {
-      // Call veildatamarketv3.aleo/purchase — handles USDCx escrow on-chain
+      // Call veildatamarketv8.aleo/purchase — sends USDCx directly to seller with ZK privacy
       const blobHash = stringToField(listing.blobId);
       const purchaseTx = buildPurchaseTx({
         listingId: listing.listingId,
@@ -81,21 +84,34 @@ export default function ListingPage() {
       }
       console.log("Purchase wallet response:", result);
 
-      // Poll for on-chain confirmation via listing_status mapping
+      // Poll for on-chain confirmation via listing_purchase_count
       const apiBase = process.env.NEXT_PUBLIC_ALEO_API || "https://api.explorer.provable.com/v1";
       const network = process.env.NEXT_PUBLIC_ALEO_NETWORK || "testnet";
-      const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv3.aleo";
+      const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv8.aleo";
+
+      let beforeCount = 0;
+      try {
+        const beforeRes = await fetch(`${apiBase}/${network}/program/${programId}/mapping/listing_purchase_count/${listing.listingId}`);
+        const beforeRaw = await beforeRes.text();
+        if (beforeRaw && beforeRaw !== "null") {
+          beforeCount = parseInt(beforeRaw.replace(/"/g, "").replace("u64", ""));
+        }
+      } catch {
+        // first purchase — count starts at 0
+      }
 
       let confirmed = false;
       for (let i = 0; i < 12; i++) {
         await new Promise((r) => setTimeout(r, 5000));
         try {
-          const res = await fetch(`${apiBase}/${network}/program/${programId}/mapping/listing_status/${listing.listingId}`);
+          const res = await fetch(`${apiBase}/${network}/program/${programId}/mapping/listing_purchase_count/${listing.listingId}`);
           const raw = await res.text();
-          // Status 2u8 means purchased
-          if (raw && raw.includes("2")) {
-            confirmed = true;
-            break;
+          if (raw && raw !== "null") {
+            const currentCount = parseInt(raw.replace(/"/g, "").replace("u64", ""));
+            if (currentCount > beforeCount) {
+              confirmed = true;
+              break;
+            }
           }
         } catch {
           // keep polling
@@ -126,6 +142,45 @@ export default function ListingPage() {
       setError(message);
     } finally {
       setPurchasing(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!address || !listing) return;
+    setDownloading(true);
+    setError("");
+    try {
+      // Fetch decryption key from API
+      const keyRes = await fetch(`/api/listings/${listing.listingId}/key?address=${address}`);
+      if (!keyRes.ok) {
+        const data = await keyRes.json();
+        throw new Error(data.error || "Could not retrieve decryption key");
+      }
+      const { encryptionKey } = await keyRes.json();
+      const { key, iv } = unpackKey(encryptionKey);
+
+      // Fetch encrypted blob from Walrus
+      const encryptedData = await fetchFromWalrus(listing.blobId);
+
+      // Decrypt
+      const decrypted = await decryptBlob(encryptedData, key, iv);
+
+      // Download
+      const blob = new Blob([decrypted]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${listing.title.replace(/\s+/g, "_")}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Download failed";
+      console.error("Download failed:", err);
+      setError(message);
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -226,7 +281,7 @@ export default function ListingPage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-text-secondary">Program</span>
-                    <span className="font-mono text-xs text-accent">veildatamarketv3.aleo</span>
+                    <span className="font-mono text-xs text-accent">veildatamarketv8.aleo</span>
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-text-secondary">Listing ID</span>
@@ -292,10 +347,28 @@ export default function ListingPage() {
                   </div>
                 )}
 
-                {/* Buy button */}
+                {/* Buy / Download button */}
                 {alreadyBought || txResult ? (
-                  <div className="w-full py-4 text-center text-sm text-accent border border-accent/30 bg-accent/5 rounded-full mb-4">
-                    Purchased
+                  <div className="space-y-3 mb-4">
+                    <div className="w-full py-3 text-center text-sm text-accent border border-accent/30 bg-accent/5 rounded-full">
+                      Purchased
+                    </div>
+                    <motion.button
+                      onClick={handleDownload}
+                      disabled={downloading}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full py-4 bg-accent text-black font-semibold rounded-full text-lg hover:bg-accent-dim transition-colors disabled:opacity-50"
+                    >
+                      {downloading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                          Decrypting...
+                        </span>
+                      ) : (
+                        "Download Data"
+                      )}
+                    </motion.button>
                   </div>
                 ) : !connected ? (
                   <div className="w-full py-4 text-center text-sm text-muted border border-border rounded-full mb-4">
@@ -327,8 +400,8 @@ export default function ListingPage() {
                 )}
 
                 <p className="text-xs text-muted text-center mb-6">
-                  {listing.price} USDCx moves to escrow via test_usdcx_stablecoin.aleo.
-                  Released to seller after you confirm delivery.
+                  {listing.price} USDCx paid directly to seller via test_usdcx_stablecoin.aleo.
+                  Download is available immediately after purchase.
                 </p>
 
                 {/* Seller info */}
@@ -340,8 +413,8 @@ export default function ListingPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Escrow</span>
-                    <span className="text-accent font-mono text-xs">USDCx escrow</span>
+                    <span className="text-muted">Payment</span>
+                    <span className="text-accent font-mono text-xs">Direct USDCx</span>
                   </div>
                 </div>
 
@@ -351,19 +424,15 @@ export default function ListingPage() {
                   <div className="space-y-2 text-xs text-text-secondary">
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">1.</span>
-                      <span>Sign transaction — USDCx goes to on-chain escrow</span>
+                      <span>Sign transaction — USDCx sent directly to seller</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">2.</span>
-                      <span>Seller delivers encrypted data + decryption key</span>
+                      <span>Decryption key is delivered automatically</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="text-accent font-mono">3.</span>
-                      <span>You decrypt and verify the data</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className="text-accent font-mono">4.</span>
-                      <span>Confirm to release payment, or dispute for refund</span>
+                      <span>Download and decrypt the data instantly</span>
                     </div>
                   </div>
                 </div>

@@ -9,7 +9,7 @@ import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import Footer from "@/components/shared/Footer";
 import { encryptFile, keyToFields, packKey } from "@/lib/crypto";
 import { uploadToWalrus } from "@/lib/walrus";
-import { buildCreateListingTx, stringToField } from "@/lib/aleo";
+import { buildCreateListingTx, buildPlatformFeeTx, stringToField } from "@/lib/aleo";
 import { createListing } from "@/lib/listings";
 
 const categories = [
@@ -45,19 +45,6 @@ export default function SellPage() {
   const [blobId, setBlobId] = useState("");
   const [txId, setTxId] = useState("");
   const [error, setError] = useState("");
-  const [hasPrivateAleo, setHasPrivateAleo] = useState<boolean | null>(null);
-
-  // Check if wallet has private ALEO records by attempting to detect via records API
-  // Since we can't directly query private records, we show a warning and let the user self-check
-  useEffect(() => {
-    if (!connected || !address) {
-      setHasPrivateAleo(null);
-      return;
-    }
-    // We can't check private records from the API, so default to showing the warning
-    // Users who already converted will know they have private ALEO
-    setHasPrivateAleo(null);
-  }, [connected, address]);
 
   useGSAP(
     () => {
@@ -84,7 +71,13 @@ export default function SellPage() {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let value = e.target.value;
+    if (e.target.name === "price" && value !== "") {
+      const num = parseInt(value);
+      if (num > 3) value = "3";
+      if (num < 0) value = "0";
+    }
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,6 +85,12 @@ export default function SellPage() {
     if (!file || !address || !executeTransaction) return;
 
     setError("");
+
+    const price = parseInt(formData.price);
+    if (isNaN(price) || price < 1 || price > 3) {
+      setError("Price must be between 1 and 3 USDCx.");
+      return;
+    }
 
     try {
       // Step 1: Encrypt the file client-side
@@ -124,9 +123,27 @@ export default function SellPage() {
       }
       setBlobId(walrusResult.blobId);
 
-      // Step 3: Sign the create_listing transaction with Shield Wallet
+      // Step 3: Pay 0.2 ALEO platform fee (public transfer, no private records)
       setUploadStatus("signing");
-      setStatusMessage("Approve the transaction in Shield Wallet to create your listing...");
+      setStatusMessage("Approve 0.2 ALEO platform fee in Shield Wallet...");
+
+      try {
+        const feeTx = buildPlatformFeeTx();
+        const feeResult = await executeTransaction(feeTx);
+        if (!feeResult?.transactionId) {
+          throw new Error("Fee payment was rejected");
+        }
+        console.log("Platform fee paid:", feeResult.transactionId);
+      } catch (feeErr) {
+        const msg = feeErr instanceof Error ? feeErr.message : "";
+        if (msg.includes("No response")) {
+          throw new Error("Shield Wallet did not respond. Try closing and reopening the extension, then retry.");
+        }
+        throw new Error(`Platform fee failed: ${msg || "Transaction rejected."}`);
+      }
+
+      // Step 4: Create listing on-chain (no private records needed)
+      setStatusMessage("Approve listing creation in Shield Wallet...");
 
       const listingId = stringToField(formData.title + Date.now());
       const blobHash = stringToField(walrusResult.blobId);
@@ -147,23 +164,16 @@ export default function SellPage() {
         schemaHash: formData.schemaFields ? schemaHash : stringToField("none"),
       });
 
-      console.log("=== CREATE LISTING TX ===");
-      console.log("Program:", tx.program);
-      console.log("Function:", tx.function);
-      console.log("Inputs:", tx.inputs);
-      console.log("Full TX:", JSON.stringify(tx, null, 2));
-
       let result;
       try {
         result = await executeTransaction(tx);
-        console.log("Wallet response:", result);
+        console.log("Listing created:", result);
       } catch (txErr) {
         const msg = txErr instanceof Error ? txErr.message : "";
-        console.error("Wallet error details:", txErr);
         if (msg.includes("No response")) {
-          throw new Error("Shield Wallet returned \"No response\". Try:\n• Close and reopen Shield Wallet extension\n• Convert public ALEO to private on Dashboard if you haven't\n• Make sure you have at least 1.5 ALEO (1 platform fee + 0.5 network fee)");
+          throw new Error("Shield Wallet did not respond. Try closing and reopening the extension, then retry.");
         }
-        throw new Error(`Wallet error: ${msg || "Transaction failed."}`);
+        throw new Error(`Listing creation failed: ${msg || "Transaction rejected."}`);
       }
       if (!result?.transactionId) {
         throw new Error("Wallet did not return a transaction ID. Please try again.");
@@ -334,9 +344,11 @@ export default function SellPage() {
                     <input
                       name="price"
                       type="number"
+                      min="1"
+                      max="3"
                       value={formData.price}
                       onChange={handleChange}
-                      placeholder="e.g. 25"
+                      placeholder="1–3"
                       className="w-full px-4 py-3 bg-card border border-border rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
                       required
                     />
@@ -363,7 +375,7 @@ export default function SellPage() {
                 {/* Platform fee notice */}
                 <div className="glass-card rounded-xl p-4 border-accent/20 bg-accent/5">
                   <p className="text-sm text-text-secondary">
-                    <span className="text-accent font-semibold">1 ALEO</span> platform fee will be charged from your wallet to list this data.
+                    <span className="text-accent font-semibold">0.2 ALEO</span> platform fee will be charged from your wallet to list this data.
                   </p>
                 </div>
 
@@ -394,17 +406,13 @@ export default function SellPage() {
                   </div>
                 )}
 
-                {/* Private ALEO check */}
+                {/* Platform fee notice */}
                 {connected && (
                   <div className="glass-card rounded-xl p-5 border-accent/30 bg-accent/5">
                     <p className="text-sm text-text-secondary">
-                      <span className="text-accent font-semibold">Requires private ALEO.</span>{" "}
-                      Listing costs 1 ALEO platform fee paid from a private credits record.
-                      If you only have public ALEO, go to your{" "}
-                      <Link href="/dashboard" className="text-accent underline hover:text-accent-dim">
-                        Dashboard
-                      </Link>{" "}
-                      and click &quot;Get 2 Private ALEO&quot; first.
+                      <span className="text-accent font-semibold">0.2 ALEO platform fee</span>{" "}
+                      will be charged from your public balance. You&apos;ll approve two transactions:
+                      the fee payment and the listing creation.
                     </p>
                   </div>
                 )}
@@ -493,7 +501,7 @@ export default function SellPage() {
                     <li>Your file is encrypted with AES-256-GCM in your browser</li>
                     <li>The encrypted blob is uploaded to Walrus (decentralized storage on Sui)</li>
                     <li>You sign a transaction in Shield Wallet to create the listing on Aleo</li>
-                    <li>1 ALEO platform fee is paid via credits.aleo</li>
+                    <li>0.2 ALEO platform fee is paid via credits.aleo</li>
                     <li>Buyers pay in USDCx — only you hold the decryption key</li>
                   </ol>
                 </div>
