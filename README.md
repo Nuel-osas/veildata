@@ -2,6 +2,8 @@
 
 **Live:** [exorbilabs.xyz](https://www.exorbilabs.xyz)
 
+[![Watch Demo](./thumbnail.png)](https://youtu.be/VUdvEKvZjeY)
+
 VeilData is a privacy-preserving data marketplace built on [Aleo](https://aleo.org). It enables anyone to list, sell, and purchase datasets with **zero-knowledge privacy** for buyers, **AES-256-GCM encryption** for data contents, and **decentralized storage** via [Walrus](https://walrus.xyz) on Sui. The entire purchase flow runs through a custom Aleo smart contract, ensuring buyer identities remain shielded by ZK proofs while payments settle directly to sellers in USDCx stablecoins.
 
 > Built for the **Aleo Privacy Buildathon** (AKINDO, Wave 3)
