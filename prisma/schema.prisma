@@ -20,6 +20,7 @@ model Listing {
   encryptionKey   String?  @map("encryption_key")
   txId            String   @map("tx_id")
   status          String   @default("active")
+  previewBlobId   String?  @map("preview_blob_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("listings")
@@ -37,6 +38,19 @@ model Purchase {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("purchases")
+}
+
+model Rating {
+  id         Int      @id @default(autoincrement())
+  listingId  String   @map("listing_id")
+  buyer      String
+  seller     String
+  score      Int
+  txId       String   @map("tx_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([listingId, buyer])
+  @@map("ratings")
 }
 
 model VaultStorage {

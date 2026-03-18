@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     blobId,
     encryptionKey,
     txId,
+    previewBlobId,
   } = body;
 
   if (!listingId || !title || !seller || !txId) {
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
       blobId,
       encryptionKey,
       txId,
+      previewBlobId: previewBlobId || null,
     },
   });
 

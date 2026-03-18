@@ -30,6 +30,7 @@ export default function SellPage() {
   const pageRef = useRef<HTMLDivElement>(null);
   const { address, executeTransaction, connected } = useWallet();
   const [file, setFile] = useState<File | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -139,6 +140,20 @@ export default function SellPage() {
       }
       setBlobId(walrusResult.blobId);
 
+      // Step 3b: Upload preview file to Walrus (unencrypted, optional)
+      let previewBlobId: string | undefined;
+      if (previewFile) {
+        setStatusMessage("Uploading preview sample to Walrus...");
+        try {
+          const previewBlob = new Blob([await previewFile.arrayBuffer()]);
+          const previewResult = await uploadToWalrus(previewBlob, WALRUS_CREATOR_ADDRESS);
+          previewBlobId = previewResult.blobId;
+        } catch {
+          // Preview upload failure is non-fatal
+          console.warn("Preview upload failed, continuing without preview");
+        }
+      }
+
       // Step 4: Create listing on-chain (needs blobId from upload)
       setUploadStatus("signing");
       setStatusMessage("Approve listing creation in Shield Wallet...");
@@ -160,6 +175,7 @@ export default function SellPage() {
         category: categoryField,
         rowCount: formData.rowCount ? parseInt(formData.rowCount) : 0,
         schemaHash: formData.schemaFields ? schemaHash : stringToField("none"),
+        previewBlobId: previewBlobId ? stringToField(previewBlobId) : undefined,
       });
 
       let result;
@@ -191,6 +207,7 @@ export default function SellPage() {
         blobId: walrusResult.blobId,
         encryptionKey: packedKey,
         txId: result.transactionId,
+        previewBlobId,
       });
 
       setUploadStatus("done");
@@ -455,6 +472,40 @@ export default function SellPage() {
                       </p>
                     </div>
                   )}
+                </div>
+
+                {/* Preview file (optional) */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Preview Sample{" "}
+                    <span className="text-muted font-normal">(optional — helps buyers evaluate your data)</span>
+                  </label>
+                  <div
+                    className={`border border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
+                      previewFile
+                        ? "border-accent/50 bg-accent/5"
+                        : "border-border hover:border-border-hover"
+                    }`}
+                    onClick={() => document.getElementById("preview-input")?.click()}
+                  >
+                    <input
+                      id="preview-input"
+                      type="file"
+                      className="hidden"
+                      accept=".csv"
+                      onChange={(e) => setPreviewFile(e.target.files?.[0] || null)}
+                    />
+                    {previewFile ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <span className="text-accent text-sm font-mono">{previewFile.name}</span>
+                        <span className="text-xs text-muted">({(previewFile.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted">
+                        Upload a small CSV sample (first 10-20 rows) — stored unencrypted so buyers can preview
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Upload status */}

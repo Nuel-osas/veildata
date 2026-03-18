@@ -13,6 +13,9 @@ export interface ListingData {
   seller: string;
   schemaPreview: string[];
   salesCount: number;
+  sellerRating?: number;
+  sellerRatingCount?: number;
+  hasPreview?: boolean;
 }
 
 const categoryColors: Record<string, string> = {
@@ -82,21 +85,33 @@ export default function ListingCard({ listing }: { listing: ListingData }) {
             )}
           </div>
 
-          <div className="mt-8 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+          <div className="mt-8 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
             <div>
               <p className="text-[0.62rem] font-mono uppercase tracking-[0.18em] text-muted">
                 Seller
               </p>
               <p className="mt-2 text-xs font-mono text-foreground">
-                {listing.seller.slice(0, 10)}...{listing.seller.slice(-4)}
+                {listing.seller.slice(0, 8)}...
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-[0.62rem] font-mono uppercase tracking-[0.18em] text-muted">
+                Rating
+              </p>
+              <p className="mt-2 text-xs text-foreground">
+                {listing.sellerRating ? (
+                  <span className="text-accent">★ {listing.sellerRating}</span>
+                ) : (
+                  <span className="text-muted">—</span>
+                )}
               </p>
             </div>
             <div className="text-right">
               <p className="text-[0.62rem] font-mono uppercase tracking-[0.18em] text-muted">
-                Market cue
+                Rows
               </p>
               <p className="mt-2 text-xs text-foreground">
-                {listing.rowCount.toLocaleString()} rows
+                {listing.rowCount.toLocaleString()}
               </p>
             </div>
           </div>

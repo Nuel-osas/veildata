@@ -57,29 +57,39 @@ Traditional data marketplaces expose **who buys what** — a significant privacy
 
 ---
 
-## Smart Contract — `veildatamarketv8.aleo`
+## Smart Contract — `veildatamarketv9.aleo`
 
-Deployed on Aleo Testnet. The contract handles listing creation, purchasing with ZK privacy, and a USDCx faucet for testers.
+Deployed on Aleo Testnet. The contract handles listing creation, purchasing with ZK privacy, seller reputation, data previews, and a USDCx faucet for testers.
 
-### Transitions
+### Transitions (7)
 
 | Function | Description |
 |----------|-------------|
-| `create_listing` | Registers a new dataset on-chain with metadata (price, schema hash, category, row count) |
+| `create_listing` | Registers a new dataset on-chain with metadata and optional preview blob reference |
 | `purchase` | Buyer purchases a listing — USDCx sent directly to seller via `transfer_public_as_signer` with ZK privacy |
 | `claim_test_usdcx` | One-time faucet: claim 3 USDCx for testing (one per wallet) |
+| `update_listing_price` | Seller updates the price of their active listing (ownership verified on-chain) |
+| `deactivate_listing` | Seller removes their listing from the marketplace (ownership verified on-chain) |
+| `rate_seller` | Buyer rates a seller 1-5 after purchase — enforces one rating per buyer per listing |
+| `request_preview` | Tracks on-chain interest in previewing a listing's data sample |
 
-### On-Chain Mappings
+### On-Chain Mappings (13)
 
 | Mapping | Purpose |
 |---------|---------|
 | `listings` | Listing metadata (category, price, seller, row count, schema hash) |
-| `listing_status` | Status tracking (1 = active) |
+| `listing_status` | Status tracking (1 = active, 0 = deactivated) |
 | `buyer_purchases` | Prevents same buyer from purchasing a listing twice |
 | `listing_purchase_count` | Total purchases per listing |
 | `seller_sales` | Seller's cumulative sale count |
 | `total_listings` | Global listing counter |
 | `claimed_faucet` | Tracks which wallets have claimed the USDCx faucet |
+| `platform_pool` | Platform fee counter |
+| `listing_previews` | Maps listing to preview data blob hash |
+| `seller_ratings` | Cumulative rating score per seller |
+| `seller_rating_count` | Number of ratings per seller |
+| `buyer_rated` | Prevents double-rating (one per buyer per listing) |
+| `preview_requests` | Tracks preview request count per listing |
 
 ### Key Design Decisions
 
@@ -87,12 +97,16 @@ Deployed on Aleo Testnet. The contract handles listing creation, purchasing with
 - **Multi-buyer support** — Listings stay active after purchase; multiple buyers can buy the same dataset
 - **`transfer_public_as_signer`** — Solves the cross-program caller issue where `self.caller` becomes the program address in nested calls. Using `self.signer` ensures the original user (buyer) is debited
 - **Automatic key delivery** — Buyer gets the decryption key immediately after purchase via the API, no manual seller action needed
+- **On-chain reputation** — Buyers rate sellers after purchase; ratings are enforced on-chain (must have purchased, can only rate once)
+- **Data previews** — Sellers can attach an unencrypted sample to listings so buyers can evaluate before purchasing
+- **Seller management** — Sellers can update prices and deactivate listings, with on-chain ownership verification
 
 ### Deploy Transactions
 
 | Version | Transaction ID |
 |---------|---------------|
-| v8 (current) | `at1ex656a7hrrzpyhexwfjcypcc262c3mwuu78hkh3my7qxgzrgjgrsed4tak` |
+| v9 (current) | `at17058jmg76yvyaau7q6eh7m8gcyywmxyrqa6yf29hen9amyznecxqtuqq8s` |
+| v8 | `at1ex656a7hrrzpyhexwfjcypcc262c3mwuu78hkh3my7qxgzrgjgrsed4tak` |
 
 ---
 

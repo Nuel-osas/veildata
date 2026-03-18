@@ -17,7 +17,24 @@ export interface ListingRecord {
   hasEncryptionKey: boolean;
   txId: string;
   status: string;
+  previewBlobId?: string | null;
   createdAt: string;
+}
+
+export interface RatingRecord {
+  id: number;
+  listingId: string;
+  buyer: string;
+  seller: string;
+  score: number;
+  txId: string;
+  createdAt: string;
+}
+
+export interface SellerRatings {
+  ratings: RatingRecord[];
+  average: number;
+  count: number;
 }
 
 export interface PurchaseRecord {
@@ -57,6 +74,7 @@ export async function createListing(data: {
   blobId: string;
   encryptionKey: string;
   txId: string;
+  previewBlobId?: string;
 }): Promise<ListingRecord> {
   const res = await fetch("/api/listings", {
     method: "POST",
@@ -96,4 +114,44 @@ export async function createPurchase(data: {
   });
   if (!res.ok) throw new Error("Failed to save purchase");
   return res.json();
+}
+
+export async function fetchSellerRatings(seller: string): Promise<SellerRatings> {
+  const res = await fetch(`/api/ratings?seller=${seller}`);
+  if (!res.ok) return { ratings: [], average: 0, count: 0 };
+  return res.json();
+}
+
+export async function createRating(data: {
+  listingId: string;
+  buyer: string;
+  seller: string;
+  score: number;
+  txId: string;
+}): Promise<RatingRecord> {
+  const res = await fetch("/api/ratings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to save rating");
+  return res.json();
+}
+
+export async function updateListingPrice(listingId: string, newPrice: number, seller: string): Promise<void> {
+  const res = await fetch(`/api/listings/${listingId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ price: newPrice, seller }),
+  });
+  if (!res.ok) throw new Error("Failed to update price");
+}
+
+export async function deactivateListing(listingId: string, seller: string): Promise<void> {
+  const res = await fetch(`/api/listings/${listingId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "deactivated", seller }),
+  });
+  if (!res.ok) throw new Error("Failed to deactivate listing");
 }

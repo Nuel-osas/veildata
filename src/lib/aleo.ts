@@ -1,14 +1,14 @@
 /**
  * Aleo contract interaction helpers.
- * Builds TransactionOptions for the veildatamarketv8.aleo program,
+ * Builds TransactionOptions for the veildatamarketv9.aleo program,
  * compatible with the Provable Shield wallet adapter.
  */
 
 import { TransactionOptions } from "@provablehq/aleo-types";
 
-const PROGRAM_ID = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv8.aleo";
+const PROGRAM_ID = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv9.aleo";
 const FEE = 500_000; // 0.5 ALEO in microcredits
-// Program address for veildatamarketv8.aleo
+// Program address for veildatamarketv9.aleo
 const PROGRAM_ADDRESS = "aleo17kc2tkll7plruvg4kvd9p93udknx977dldrw7me02znh5naf0u8sf5zd88";
 // Pool address (receives platform listing fees)
 const POOL_ADDRESS = "aleo12m9nrm9fqvvfj6sm7mqw5quwklqldfedu8kv43rnp33v09aqlvgq5hck26";
@@ -42,10 +42,9 @@ export function buildCreateListingTx(
     category: string;
     rowCount: number;
     schemaHash: string;
+    previewBlobId?: string;
   }
 ): TransactionOptions {
-  // v6: No credits record needed. All 8 params are plain inputs.
-  // Platform fee (0.2 ALEO) is paid separately via credits.aleo/transfer_public.
   return {
     program: PROGRAM_ID,
     function: "create_listing",
@@ -58,6 +57,7 @@ export function buildCreateListingTx(
       params.category,
       params.rowCount.toString() + "u64",
       params.schemaHash,
+      params.previewBlobId || "0field",
     ],
     fee: FEE,
     privateFee: false,
@@ -135,6 +135,77 @@ export function buildClaimTestUsdcxTx(): TransactionOptions {
     program: PROGRAM_ID,
     function: "claim_test_usdcx",
     inputs: [],
+    fee: FEE,
+    privateFee: false,
+  };
+}
+
+/**
+ * Build an update_listing_price transaction.
+ * Only the listing seller can update the price.
+ */
+export function buildUpdateListingPriceTx(
+  params: { listingId: string; newPrice: number }
+): TransactionOptions {
+  return {
+    program: PROGRAM_ID,
+    function: "update_listing_price",
+    inputs: [
+      params.listingId,
+      (params.newPrice * USDCX_DECIMALS).toString() + "u128",
+    ],
+    fee: FEE,
+    privateFee: false,
+  };
+}
+
+/**
+ * Build a deactivate_listing transaction.
+ * Only the listing seller can deactivate.
+ */
+export function buildDeactivateListingTx(
+  params: { listingId: string }
+): TransactionOptions {
+  return {
+    program: PROGRAM_ID,
+    function: "deactivate_listing",
+    inputs: [params.listingId],
+    fee: FEE,
+    privateFee: false,
+  };
+}
+
+/**
+ * Build a rate_seller transaction.
+ * Buyer rates seller 1-5 after purchasing a listing.
+ */
+export function buildRateSellerTx(
+  params: { listingId: string; seller: string; score: number }
+): TransactionOptions {
+  return {
+    program: PROGRAM_ID,
+    function: "rate_seller",
+    inputs: [
+      params.listingId,
+      params.seller,
+      params.score.toString() + "u8",
+    ],
+    fee: FEE,
+    privateFee: false,
+  };
+}
+
+/**
+ * Build a request_preview transaction.
+ * Tracks on-chain interest in previewing a listing's data.
+ */
+export function buildRequestPreviewTx(
+  params: { listingId: string }
+): TransactionOptions {
+  return {
+    program: PROGRAM_ID,
+    function: "request_preview",
+    inputs: [params.listingId],
     fee: FEE,
     privateFee: false,
   };

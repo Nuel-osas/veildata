@@ -8,8 +8,8 @@ import gsap from "gsap";
 import { motion } from "framer-motion";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import Footer from "@/components/shared/Footer";
-import { buildPurchaseTx, stringToField, executeWithRetry } from "@/lib/aleo";
-import { fetchListing, createPurchase, fetchPurchases, ListingRecord } from "@/lib/listings";
+import { buildPurchaseTx, buildRateSellerTx, stringToField, executeWithRetry } from "@/lib/aleo";
+import { fetchListing, createPurchase, fetchPurchases, fetchSellerRatings, createRating, ListingRecord, SellerRatings } from "@/lib/listings";
 import { decryptBlob, unpackKey } from "@/lib/crypto";
 import { fetchFromWalrus } from "@/lib/walrus";
 
@@ -24,6 +24,12 @@ export default function ListingPage() {
   const [error, setError] = useState("");
   const [alreadyBought, setAlreadyBought] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [sellerRatings, setSellerRatings] = useState<SellerRatings | null>(null);
+  const [ratingScore, setRatingScore] = useState(0);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [previewData, setPreviewData] = useState<string[][] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +53,55 @@ export default function ListingPage() {
     return () => { cancelled = true; };
   }, [address, listing?.listingId]);
 
+  // Load seller ratings
+  useEffect(() => {
+    if (!listing) return;
+    fetchSellerRatings(listing.seller).then(setSellerRatings);
+  }, [listing?.seller]);
+
+  // Load preview data
+  useEffect(() => {
+    if (!listing?.previewBlobId) return;
+    setPreviewLoading(true);
+    fetchFromWalrus(listing.previewBlobId)
+      .then((data) => {
+        const text = new TextDecoder().decode(data);
+        const rows = text.split("\n").filter(Boolean).map((row) => row.split(","));
+        setPreviewData(rows.slice(0, 21)); // header + 20 rows max
+      })
+      .catch(() => setPreviewData(null))
+      .finally(() => setPreviewLoading(false));
+  }, [listing?.previewBlobId]);
+
+  const handleRate = async () => {
+    if (!address || !executeTransaction || !listing || ratingScore === 0) return;
+    setRatingLoading(true);
+    try {
+      const tx = buildRateSellerTx({
+        listingId: listing.listingId,
+        seller: listing.seller,
+        score: ratingScore,
+      });
+      const result = await executeWithRetry(executeTransaction, tx);
+      if (!result?.transactionId) throw new Error("Rating rejected");
+
+      await createRating({
+        listingId: listing.listingId,
+        buyer: address,
+        seller: listing.seller,
+        score: ratingScore,
+        txId: result.transactionId,
+      });
+      setRatingSubmitted(true);
+      // Refresh ratings
+      fetchSellerRatings(listing.seller).then(setSellerRatings);
+    } catch (err) {
+      console.error("Rating failed:", err);
+    } finally {
+      setRatingLoading(false);
+    }
+  };
+
   const [animationPlayed, setAnimationPlayed] = useState(false);
 
   useGSAP(
@@ -67,7 +122,7 @@ export default function ListingPage() {
     setError("");
 
     try {
-      // Call veildatamarketv8.aleo/purchase — sends USDCx directly to seller with ZK privacy
+      // Call veildatamarketv9.aleo/purchase — sends USDCx directly to seller with ZK privacy
       const blobHash = stringToField(listing.blobId);
       const purchaseTx = buildPurchaseTx({
         listingId: listing.listingId,
@@ -87,7 +142,7 @@ export default function ListingPage() {
       // Poll for on-chain confirmation via listing_purchase_count
       const apiBase = process.env.NEXT_PUBLIC_ALEO_API || "https://api.explorer.provable.com/v1";
       const network = process.env.NEXT_PUBLIC_ALEO_NETWORK || "testnet";
-      const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv8.aleo";
+      const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veildatamarketv9.aleo";
 
       let beforeCount = 0;
       try {
@@ -273,6 +328,50 @@ export default function ListingPage() {
                 </div>
               </div>
 
+              {/* Data Preview */}
+              {(listing.previewBlobId || previewLoading) && (
+                <div className="glass-card rounded-2xl p-6 mb-6">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted mb-4">
+                    Data Preview
+                  </h3>
+                  {previewLoading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : previewData && previewData.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs font-mono">
+                        <thead>
+                          <tr className="border-b border-border">
+                            {previewData[0].map((header, i) => (
+                              <th key={i} className="text-left py-2 px-3 text-accent font-semibold">
+                                {header.trim()}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {previewData.slice(1).map((row, ri) => (
+                            <tr key={ri} className="border-b border-border/50 hover:bg-white/5">
+                              {row.map((cell, ci) => (
+                                <td key={ci} className="py-2 px-3 text-text-secondary">
+                                  {cell.trim()}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="text-xs text-muted mt-3">
+                        Showing sample preview — purchase to access full dataset
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted">Preview not available</p>
+                  )}
+                </div>
+              )}
+
               {/* On-chain info */}
               <div className="glass-card rounded-2xl p-6 mb-6">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted mb-4">
@@ -281,7 +380,7 @@ export default function ListingPage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-text-secondary">Program</span>
-                    <span className="font-mono text-xs text-accent">veildatamarketv8.aleo</span>
+                    <span className="font-mono text-xs text-accent">veildatamarketv9.aleo</span>
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-text-secondary">Listing ID</span>
@@ -404,7 +503,7 @@ export default function ListingPage() {
                   Download is available immediately after purchase.
                 </p>
 
-                {/* Seller info */}
+                {/* Seller info + reputation */}
                 <div className="border-t border-border pt-4 space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">Seller</span>
@@ -412,11 +511,57 @@ export default function ListingPage() {
                       {listing.seller.slice(0, 10)}...
                     </span>
                   </div>
+                  {sellerRatings && sellerRatings.count > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted">Rating</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-accent">{"★".repeat(Math.round(sellerRatings.average))}</span>
+                        <span className="text-muted text-xs">{sellerRatings.average} ({sellerRatings.count})</span>
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">Payment</span>
                     <span className="text-accent font-mono text-xs">Direct USDCx</span>
                   </div>
                 </div>
+
+                {/* Rate seller (only for buyers who purchased) */}
+                {(alreadyBought || txResult) && !ratingSubmitted && (
+                  <div className="border-t border-border pt-4 mt-4">
+                    <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Rate Seller</h4>
+                    <div className="flex items-center gap-1 mb-3">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setRatingScore(star)}
+                          className={`text-2xl transition-colors ${
+                            star <= ratingScore ? "text-accent" : "text-muted/30"
+                          } hover:text-accent`}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                    {ratingScore > 0 && (
+                      <motion.button
+                        onClick={handleRate}
+                        disabled={ratingLoading}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="w-full py-2.5 text-sm bg-accent/10 border border-accent/30 text-accent rounded-full hover:bg-accent/20 transition-colors disabled:opacity-50"
+                      >
+                        {ratingLoading ? "Submitting..." : `Submit ${ratingScore}-star rating`}
+                      </motion.button>
+                    )}
+                  </div>
+                )}
+                {ratingSubmitted && (
+                  <div className="border-t border-border pt-4 mt-4">
+                    <p className="text-xs text-accent text-center">Rating submitted on-chain</p>
+                  </div>
+                )}
 
                 {/* Flow info */}
                 <div className="border-t border-border pt-4 mt-4">
