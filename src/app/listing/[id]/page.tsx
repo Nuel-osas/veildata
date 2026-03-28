@@ -328,49 +328,55 @@ export default function ListingPage() {
                 </div>
               </div>
 
-              {/* Data Preview */}
-              {(listing.previewBlobId || previewLoading) && (
-                <div className="glass-card rounded-2xl p-6 mb-6">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted mb-4">
+              {/* Data Preview — always shown */}
+              <div className="glass-card rounded-2xl p-6 mb-6 border border-accent/10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-accent">
                     Data Preview
                   </h3>
-                  {previewLoading ? (
-                    <div className="flex justify-center py-8">
-                      <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  ) : previewData && previewData.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs font-mono">
-                        <thead>
-                          <tr className="border-b border-border">
-                            {previewData[0].map((header, i) => (
-                              <th key={i} className="text-left py-2 px-3 text-accent font-semibold">
-                                {header.trim()}
-                              </th>
+                  <span className="text-[0.62rem] font-mono uppercase tracking-[0.18em] text-muted">
+                    Verify before you buy
+                  </span>
+                </div>
+                {previewLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : previewData && previewData.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs font-mono">
+                      <thead>
+                        <tr className="border-b border-border">
+                          {previewData[0].map((header, i) => (
+                            <th key={i} className="text-left py-2 px-3 text-accent font-semibold">
+                              {header.trim()}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.slice(1).map((row, ri) => (
+                          <tr key={ri} className="border-b border-border/50 hover:bg-white/5">
+                            {row.map((cell, ci) => (
+                              <td key={ci} className="py-2 px-3 text-text-secondary">
+                                {cell.trim()}
+                              </td>
                             ))}
                           </tr>
-                        </thead>
-                        <tbody>
-                          {previewData.slice(1).map((row, ri) => (
-                            <tr key={ri} className="border-b border-border/50 hover:bg-white/5">
-                              {row.map((cell, ci) => (
-                                <td key={ci} className="py-2 px-3 text-text-secondary">
-                                  {cell.trim()}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <p className="text-xs text-muted mt-3">
-                        Showing sample preview — purchase to access full dataset
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted">Preview not available</p>
-                  )}
-                </div>
-              )}
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="text-xs text-muted mt-3">
+                      Showing sample rows — purchase to access full dataset ({listing.rowCount.toLocaleString()} rows)
+                    </p>
+                  </div>
+                ) : (
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-muted">No preview available for this listing</p>
+                    <p className="text-xs text-muted mt-1">This listing was created before preview was required</p>
+                  </div>
+                )}
+              </div>
 
               {/* On-chain info */}
               <div className="glass-card rounded-2xl p-6 mb-6">

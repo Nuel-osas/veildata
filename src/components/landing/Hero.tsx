@@ -149,9 +149,10 @@ export default function Hero() {
           </div>
 
           <p className="hero-copy mt-8 max-w-2xl text-lg leading-relaxed text-text-secondary md:text-[1.18rem]">
-            VeilData is a marketplace for sensitive datasets. Sellers publish
-            proof-backed signal, buyers escrow privately, and the raw file stays
-            hidden until the trade is complete.
+            VeilData lets healthcare providers, research teams, and data brokers
+            sell sensitive datasets without exposing contents or buyer identity.
+            Files are encrypted client-side, stored on Walrus, and traded through
+            Aleo&apos;s zero-knowledge proofs.
           </p>
 
           <div className="hero-actions mt-10 flex flex-col gap-4 sm:flex-row">
@@ -172,11 +173,11 @@ export default function Hero() {
           <div className="mt-14 grid gap-5 border-t border-white/10 pt-6 md:grid-cols-3">
             <div className="hero-meta">
               <p className="text-[0.68rem] font-mono uppercase tracking-[0.24em] text-muted">
-                For
+                Built for
               </p>
               <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-                research teams, analytics desks, and anyone trading sensitive
-                commercial data.
+                Healthcare providers, hedge funds, AI labs, and compliance
+                teams trading regulated or proprietary data.
               </p>
             </div>
             <div className="hero-meta">
@@ -184,7 +185,7 @@ export default function Hero() {
                 Trust layer
               </p>
               <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-                Aleo handles proof, escrow, and controlled release.
+                Aleo ZK proofs hide buyer identity and verify data integrity on-chain.
               </p>
             </div>
             <div className="hero-meta">

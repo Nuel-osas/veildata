@@ -30,7 +30,6 @@ export default function SellPage() {
   const pageRef = useRef<HTMLDivElement>(null);
   const { address, executeTransaction, connected } = useWallet();
   const [file, setFile] = useState<File | null>(null);
-  const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -94,8 +93,14 @@ export default function SellPage() {
     }
 
     try {
-      // Step 1: Encrypt the file client-side
+      // Step 1: Extract preview from actual file (first 20 rows)
       setUploadStatus("encrypting");
+      setStatusMessage("Extracting preview sample from your data...");
+      const fileText = await file.text();
+      const lines = fileText.split("\n").filter(Boolean);
+      const previewCsv = lines.slice(0, 21).join("\n"); // header + 20 rows
+
+      // Step 1b: Encrypt the full file client-side
       setStatusMessage("Encrypting your data with AES-256-GCM...");
       let encrypted;
       try {
@@ -140,19 +145,11 @@ export default function SellPage() {
       }
       setBlobId(walrusResult.blobId);
 
-      // Step 3b: Upload preview file to Walrus (unencrypted, optional)
-      let previewBlobId: string | undefined;
-      if (previewFile) {
-        setStatusMessage("Uploading preview sample to Walrus...");
-        try {
-          const previewBlob = new Blob([await previewFile.arrayBuffer()]);
-          const previewResult = await uploadToWalrus(previewBlob, WALRUS_CREATOR_ADDRESS);
-          previewBlobId = previewResult.blobId;
-        } catch {
-          // Preview upload failure is non-fatal
-          console.warn("Preview upload failed, continuing without preview");
-        }
-      }
+      // Step 3b: Upload auto-extracted preview to Walrus (unencrypted, first 20 rows of actual file)
+      setStatusMessage("Uploading data preview to Walrus...");
+      const previewBlob = new Blob([previewCsv], { type: "text/csv" });
+      const previewResult = await uploadToWalrus(previewBlob, WALRUS_CREATOR_ADDRESS);
+      const previewBlobId = previewResult.blobId;
 
       // Step 4: Create listing on-chain (needs blobId from upload)
       setUploadStatus("signing");
@@ -474,38 +471,13 @@ export default function SellPage() {
                   )}
                 </div>
 
-                {/* Preview file (optional) */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Preview Sample{" "}
-                    <span className="text-muted font-normal">(optional — helps buyers evaluate your data)</span>
-                  </label>
-                  <div
-                    className={`border border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
-                      previewFile
-                        ? "border-accent/50 bg-accent/5"
-                        : "border-border hover:border-border-hover"
-                    }`}
-                    onClick={() => document.getElementById("preview-input")?.click()}
-                  >
-                    <input
-                      id="preview-input"
-                      type="file"
-                      className="hidden"
-                      accept=".csv"
-                      onChange={(e) => setPreviewFile(e.target.files?.[0] || null)}
-                    />
-                    {previewFile ? (
-                      <div className="flex items-center justify-center gap-3">
-                        <span className="text-accent text-sm font-mono">{previewFile.name}</span>
-                        <span className="text-xs text-muted">({(previewFile.size / 1024).toFixed(1)} KB)</span>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted">
-                        Upload a small CSV sample (first 10-20 rows) — stored unencrypted so buyers can preview
-                      </p>
-                    )}
-                  </div>
+                {/* Auto-preview notice */}
+                <div className="glass-card rounded-xl p-4 border-accent/20 bg-accent/5">
+                  <p className="text-sm text-text-secondary">
+                    <span className="text-accent font-semibold">Auto-preview:</span>{" "}
+                    The first 20 rows of your file are automatically extracted and published
+                    as a public preview so buyers can verify data quality before purchasing.
+                  </p>
                 </div>
 
                 {/* Upload status */}
